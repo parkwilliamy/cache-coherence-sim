@@ -1,8 +1,6 @@
 `timescale 1ns/1ps
 `default_nettype none
 
-import top_params::*;
-
 module tt_um_cache_coherence_sim (
     input  logic [7:0] ui_in,    // Dedicated inputs
     output logic [7:0] uo_out,   // Dedicated outputs
@@ -13,6 +11,8 @@ module tt_um_cache_coherence_sim (
     input  logic       clk,      // clock
     input  logic       rst_n     // reset_n - low to reset
 );
+
+  localparam int N_CORES = top_params::N_CORES;
 
   assign uio_out = 0;
   assign uio_oe  = 0;

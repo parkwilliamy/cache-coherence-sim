@@ -4,7 +4,7 @@
 # defaults
 SIM ?= verilator
 FST ?= -fst # Use more efficient FST format
-TOPLEVEL_LANG ?= systemverilog
+TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES += top_params.sv
 PROJECT_SOURCES += arbiter.sv
@@ -35,6 +35,11 @@ endif
 
 # Allow sharing configuration between design and testbench via `include`:
 COMPILE_ARGS 		+= -I$(SRC_DIR)
+
+# Verilator needs --timing for the delays in tb.v
+ifeq ($(SIM),verilator)
+COMPILE_ARGS    += --timing
+endif
 
 # Include the testbench sources:
 VERILOG_SOURCES += $(PWD)/tb.v

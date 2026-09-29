@@ -23,18 +23,20 @@ async def test_project(dut):
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
 
-    dut._log.info("Test project behavior")
+    dut._log.info("Test round robin arbiter")
 
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
-
-    # Wait for one clock cycle to see the output values
+    # Single requester: grant goes straight to it
+    dut.ui_in.value = 0b0100
     await ClockCycles(dut.clk, 1)
+    assert dut.uo_out.value == 0b0100
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
+    # All cores requesting: grant rotates round robin from the last grant
+    dut.ui_in.value = 0b1111
+    for expected in [0b1000, 0b0001, 0b0010, 0b0100, 0b1000]:
+        await ClockCycles(dut.clk, 1)
+        assert dut.uo_out.value == expected, f"expected {expected:04b}, got {dut.uo_out.value}"
 
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+    # No requests: no grant
+    dut.ui_in.value = 0
+    await ClockCycles(dut.clk, 1)
+    assert dut.uo_out.value == 0

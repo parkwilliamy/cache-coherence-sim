@@ -3,9 +3,9 @@
 
 // Round Robin Arbiter 
 
-import top_params::*;
-
-module arbiter (
+module arbiter #(
+    parameter int N_CORES = top_params::N_CORES
+) (
     input  clk,
     input  rst_n,
     input  logic [N_CORES-1:0] req,    // Request bit vector
@@ -23,8 +23,8 @@ module arbiter (
     end
 
     assign masked_req = req & mask;
-    assign gnt_masked = masked_req & (~masked_req-1);
-    assign gnt_unmasked = req & (~req-1);
+    assign gnt_masked = masked_req & (~masked_req + 1);
+    assign gnt_unmasked = req & (~req + 1);
     assign gnt = (|masked_req) ? gnt_masked : gnt_unmasked;
 
 endmodule
