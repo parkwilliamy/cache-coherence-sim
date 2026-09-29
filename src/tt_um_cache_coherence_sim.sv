@@ -24,4 +24,7 @@ module tt_um_cache_coherence_sim (
     .gnt(uo_out[N_CORES-1:0])
   );
 
+  assign uo_out[7:N_CORES] = '0;
+  wire _unused = &{ena, uio_in, ui_in[7:N_CORES], 1'b0};
+
 endmodule

@@ -6,7 +6,9 @@ SIM ?= verilator
 FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= systemverilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = tt_um_cache_coherence_sim.sv
+PROJECT_SOURCES += top_params.sv
+PROJECT_SOURCES += arbiter.sv
+PROJECT_SOURCES += tt_um_cache_coherence_sim.sv
 
 ifneq ($(GATES),yes)
 

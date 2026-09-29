@@ -23,8 +23,8 @@ module arbiter (
     end
 
     assign masked_req = req & mask;
-    assign gnt_masked = ~((masked_req << 1) - 1);
-    assign gnt_unmasked = ~((req << 1) - 1);
+    assign gnt_masked = masked_req & (~masked_req-1);
+    assign gnt_unmasked = req & (~req-1);
     assign gnt = (|masked_req) ? gnt_masked : gnt_unmasked;
 
 endmodule
