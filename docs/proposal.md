@@ -71,4 +71,4 @@ Deadline: November 19th
 - Each block will be verified using a combination of directed tests and constrained random verification
 - The chip as a whole will also be verified using test programs and checking the cache states after the programs have finished
 - Verification will be also be evaluated using functional and code coverage to estimate the extent to which our tests cover the design (ideally 95%+ for both)
-- Responsbilities for verification are the same for implementation
+- Responsibilities for verification are the same for implementation
