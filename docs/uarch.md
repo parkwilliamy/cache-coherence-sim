@@ -79,6 +79,7 @@ The decoder has 4 functions:
 - `logic program_mem_load`: Initialize program memory
 - `logic [INST_SIZE-1:0] core_inst`: Instruction to load into program memory
 - `logic read_all`: Flag indicating all cache lines are requested to be read; cache will output each line in the cache sequentially, with one line being output per clock cycle
+- `logic [2:0] protocol`: Selected cache coherence protocol
 - `logic snoop_valid`: Snooped request valid
 - `logic [INST_WIDTH-1:0] snoop_inst`: Snooped memory request from another core in the system
 ### Interfaces
@@ -94,6 +95,8 @@ The core instantiates the cache and cache controller. It is responsible for fetc
 - `logic rst_n`
 - `logic read_all`: Flag indicating all cache lines are requested to be read; cache will output each line in the cache sequentially, with one line being output per clock cycle
 - `logic [INST_WIDTH-1:0] local_inst`: Local memory request from the core the cache is attached to
+- `logic [2:0] protocol`: Selected cache coherence protocol
+- `logic snoop_valid`: Snooped request valid
 - `logic [INST_WIDTH-1:0] snoop_inst`: Snooped memory request from another core in the system
 - `logic [DATA_WIDTH-1:0] dout`: Output data for reads
 ### Outputs
@@ -109,7 +112,6 @@ The core instantiates the cache and cache controller. It is responsible for fetc
 ### Inputs
 - `logic clk`
 - `logic rst_n`
-- `logic read_all`: Flag indicating all cache lines are requested to be read; cache will output each line in the cache sequentially, with one line being output per clock cycle
 - `logic [ADDR_WIDTH-1:0] addr`: Address for reads/writes
 - `logic [DATA_WIDTH-1:0] din`: Input data for writes
 - `logic wen`: Write enable
@@ -122,18 +124,16 @@ The core instantiates the cache and cache controller. It is responsible for fetc
 ### Inputs
 - `logic clk`
 - `logic rst_n`
-- `mem_req_if reqs [N_CORES]`: Array of bus requests from each core
 - `logic [DATA_WIDTH-1:0] dout`: Output data for reads
 
 ### Outputs
-- `mem_resp_if resp [N_CORES]`: Array of bus responses to each core
 - `logic [ADDR_WIDTH-1:0] addr`: Address for reads/writes
 - `logic [DATA_WIDTH-1:0] din`: Input data for writes
 - `logic wen`: Write enable
 
 ### Interfaces
-- `mem_req_if mem_req`: Memory request channel for reads/writes
-- `mem_resp_if mem_resp`: Memory response channel for reads/writes
+- `mem_req_if reqs [N_CORES]`: Array of bus requests from each core
+- `mem_resp_if resp [N_CORES]`: Array of bus responses to each core
 
 ## `main_mem`
 

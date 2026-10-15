@@ -18,6 +18,7 @@
     - `curr_inst = program_mem[head]`
     - Decrement `head`
     - Pass `curr_inst` to `cache_ctrl` module's `local_inst` port
+    - Pass `protocol` to `cache_ctrl` module's `protocol` port
     - Pass `snoop_valid` and `snoop_inst` to `cache_ctrl` module's `snoop_inst` port
     - Pass `read_all` signal to `cache_ctrl` module's 
     - Accept `mem_req` from `cache_ctrl` module's `mem_req` port

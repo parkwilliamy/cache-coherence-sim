@@ -15,7 +15,7 @@
 - If `req_valid`:
     - State transition from `IDLE` to `LOAD`
     - While in `LOAD` (`req_valid` still asserted):
-        - `protocol_sel` written to `protocol` register
+        - `protocol_sel` written to `protocol` register in top-level module
         - `insts_loaded = 0`
         - If `mem_sel == 0 && insts_loaded < PROGRAM_SIZE`:
             - `load_req.valid = 0`
