@@ -9,15 +9,34 @@
 - `inst.addr` is address to read from or write to in main memory
 - `inst.data` is data to write to memory (only for write instructions)
 - `inst.op` is instruction type: 0 for reads and 1 for writes
-- Each line of program memory holds one memory request
+- Each line in the instruction cache holds one memory request
+
+## Invalidate Requests (`inv_t`)
+
+| Field | ADDR | INV | 
+|----|----|----|
+| Bit Width | `ADDR_WIDTH` | 1 bit |
+
+- `inv.inv` is invalidate signal placed on bus
+- `inv.addr` is address of cache line to invalidate
+
+## Transfer Requests (`transfer_t`)
+
+| Field | DATA | ADDR | TRANSFER |
+|----|----|----|----|
+| Bit Width | `DATA_WIDTH` | `ADDR_WIDTH` | 1 bit |
+
+- `transfer.transfer` is cache to cache transfer flag
+- `transfer.addr` is the address to be read from a memory request that needs to be aborted
+- `transfer.data` is the data that needs to be written to the requesting core's cache
 
 ## Cache Lines (`line_t`)
 
-| Field | ADDR | DATA | STATE | 
+| Field | TAG | DATA | STATE | 
 |----|----|----|----|
-| Bit Width | `ADDR_WIDTH`| `DATA_WIDTH` | 3 bits |
+| Bit Width | `TAG_WIDTH`| `DATA_WIDTH` | 3 bits |
 
-- `line.addr` is the line address from main memory
+- `line.tag` is the line tag 
 - `line.data` is the cache line data
     - Due to space constraints, a line contains one word of data unlike typical caches which hold multiple data words in a single cache line
 - `line.state` is the cache line's coherence state (see below)

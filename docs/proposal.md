@@ -33,7 +33,7 @@ The Cache Coherence Controller implements one of the MSI, MESI, or MOESI cache c
 - 2 cores with their own private cache
     - Each cache has 2 lines
     - Each cache line holds a 2 bit address, 1 data bit, and 3 bits for coherence state
-- Each core has its own "program memory" with a capacity of 4 memory instructions
+- Each core has its own instruction cache with a capacity of 4 memory instructions
 - Memory instructions are a read/write operation with an address and data (only for write operations)
     - A memory instruction has 1 read/write bit, 2 address bits, and 1 data bit
 - Main memory has 4 words of data
@@ -48,7 +48,7 @@ Deadline: October 22nd
 
 - Create a block diagram and documentation for the microarchitecture outlining how the design is partitioned into RTL modules and how data is passed around the chip (Will and Greg)
     - Cache coherence protocol FSMs will have their own diagrams and timing specifications (Will and Greg)
-- Design the logic to initialize main memory and core program memory based on control and data signals from the RP2040 MCU (Greg)
+- Design the logic to initialize main memory and instruction caches based on control and data signals from the RP2040 MCU (Greg)
 
 ### RTL Implementation
 

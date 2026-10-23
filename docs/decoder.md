@@ -2,11 +2,11 @@
 
 ## MCU to Cache Coherence Controller Transactions
 
-- `N_CORES` * `PROGRAM_SIZE` instructions loaded from MCU
+- `N_CORES` * `ICACHE_SIZE` instructions loaded from MCU
 - `MEM_SIZE` words loaded into main memory from MCU
-- `N_CORES` * `CACHE_SIZE` cache lines loaded from ASIC into MCU
+- `N_CORES` * `DCACHE_SIZE` cache lines loaded from ASIC into MCU
 - MCU asserts `req_valid` until it has initialized all cores' caches and the main memory
-    - `N_CORES * PROGRAM_SIZE` + `MEM_SIZE` cycles
+    - `N_CORES * ICACHE_SIZE` + `MEM_SIZE` cycles
     - `mem_sel`, `core_sel`, `protocol_sel` are set accordingly as long as `req_valid` is asserted
 - Once MCU initializes the caches and main memory, it asserts `en` as a one cycle pulse to begin execution
 - `cache_state` and `cycle_count` are valid as long as `resp_valid` is asserted
@@ -17,15 +17,15 @@
     - While in `LOAD` (`req_valid` still asserted):
         - `protocol_sel` written to `protocol` register in top-level module
         - `insts_loaded = 0`
-        - If `mem_sel == 0 && insts_loaded < PROGRAM_SIZE`:
+        - If `mem_sel == 0 && insts_loaded < ICACHE_SIZE`:
             - `load_req.valid = 0`
-            - `program_mem_load = 1`
+            - `icache_load = 1`
             - `inst` = {`req_addr`, `req_data`, `req_type`}
             - `core_insts[core_sel]` = `inst`
             -  Increment `insts_loaded`
         - Else if `mem_sel == 1`:
             - `load_req.valid = 1`
-            - `program_mem_load = 0`
+            - `icache_load = 0`
             - `load_req.addr` = `req_addr`
             - `load_req.data` = `req_data`
 - Else:
@@ -34,11 +34,12 @@
         - State transition from `IDLE` to `RECEIVE`
         - `cache_read_reqs = 1`
         - `curr_core = 0`
-        - While in `RECEIVE` and `curr_core < N_CORES`:
+        - `curr_line = 0`
+        - While in `RECEIVE`:
             - `resp_valid = 1`
-            - After `CACHE_SIZE` clock cycles, `cache_read_reqs << 1`, `cache_state = cache_read_data[curr_core]`
-            - Increment `curr_core`
-        - `resp_valid = 0`
+            - For `curr_core in [0, N_CORES*DCACHE_SIZE-1]`:
+                - `cache_read_reqs << 1`, `cache_state = cache_read_data`
+            - `resp_valid = 0`
 
 - If `en`:
     - Begin incrementing `cycles` register each clock cycle until `done` is asserted
