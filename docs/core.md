@@ -1,25 +1,25 @@
 # Core
 
-## Structures
+Fetches instructions from its instruction cache and feeds them to its cache controller. All bus-side signals pass straight through to `cache_ctrl` (see [cache_ctrl.md](./cache_ctrl.md)).
 
-- `logic [INST_SIZE-1:0] icache [ICACHE_SIZE]`: Instruction cache
-    - Uses a `head` pointer that points to the next instruction in the instruction cache to be executed (initialized to `ICACHE_SIZE-1`)
-- `logic [INST_SIZE-1:0] curr_inst`: Current instruction being executed
+## Storage
 
-## Control Flow
+| Register | Width | Meaning |
+|---|---|---|
+| `icache` | `ICACHE_SIZE x INST_WIDTH` = 16 | instruction cache |
+| `pc` | `PC_WIDTH` = 3 | load pointer during LOAD, program counter during RUN |
 
-- If `icache_load == 1`:
-    - `icache[head] = core_inst`
-    - Decrement `head`
-- Else if `start == 1`:
-    - State transition from `IDLE` to `ACTIVE`
+19 flops, plus the 10 of `cache_ctrl`. `local_inst` is read combinationally from `icache`, so no current-instruction register is needed.
 
-- While current state is `ACTIVE`:
-    - `curr_inst = icache[head]`
-    - Decrement `head`
-    - Pass `curr_inst` to `cache_ctrl` module's `local_inst` port
-    - Pass `protocol` to `cache_ctrl` module's `protocol` port
-    - Pass `snoop_valid` and `snoop_inst` to `cache_ctrl` module's `snoop_inst` port
-    - Pass `read_all` signal to `cache_ctrl` module's 
-    - Accept `mem_req` from `cache_ctrl` module's `mem_req` port
-    - Pass `mem_resp` to `cache_ctrl` module's `mem_resp` port
+## Behaviour
+
+- Reset: `pc = 0`.
+- `icache_load`: `icache[pc[$clog2(ICACHE_SIZE)-1:0]] <= load_inst; pc <= pc + 1`. The MCU sends exactly `ICACHE_SIZE` instructions per core.
+- `start`: `pc <= 0`.
+- `local_valid = run && pc != ICACHE_SIZE`
+- `local_inst = icache[pc[$clog2(ICACHE_SIZE)-1:0]]`
+- `inst_done` (from `cache_ctrl`): `pc <= pc + 1`
+- `core_done = pc == ICACHE_SIZE`, only meaningful while `run`; the decoder only looks at it then.
+- `lines = cache_ctrl.cache`, for readback.
+
+Every core executes exactly `ICACHE_SIZE` instructions in load order. A slot that was never loaded holds 0, a read of address 0. The cache controller keeps snooping after the core has finished, so the final cache states reflect everything the other core did afterwards.

@@ -1,44 +1,52 @@
-# Cache Coherence Controller Project Proposal
+# Cache Coherence Emulator Project Proposal
 
 ## Statement of Purpose
 
-The Cache Coherence Controller implements one of the MSI, MESI, or MOESI cache coherence protocols and models its behaviour by emulating read and write memory transactions over a shared bus. The coherence protocol is configured by the I/O pins, allowing each protocol's performance to be compared.
+The Cache Coherence Emulator implements one of the MSI, MESI or MOESI cache coherence protocols and models its behaviour by emulating read and write memory transactions over a shared bus. The coherence protocol is configured by the I/O pins, allowing each protocol's performance to be compared.
 
 ## System Diagram
 
-![Block diagram](./svg/CacheCoherenceController.svg)
+![Block diagram](./svg/CacheCoherenceEmulator.svg)
+
+Module interfaces and ports are in [uarch.md](./uarch.md); the reasoning behind each design choice is in [decisions.md](./decisions.md).
 
 ## Pinout
 
-### Inputs
+Pin meaning depends on the phase of a run (LOAD, RUN, READ). Positions below are for the default configuration; the general bit formats are in [encodings.md](./encodings.md).
 
-- `req_valid = ui_in[0]`: Input data from MCU valid
-- `mem_sel = ui_in[1]`: Memory select
-- `core_sel = ui_in[2]`: Core select
-- `protocol_sel[1:0] = ui_in[4:3]`: Cache coherence protocol selection
-- `req_data = ui_in[5]`: MCU request data
-- `req_addr[1:0] = ui_in[7:6]`: MCU request address
-- `req_type = uio_in[0]`: MCU request type
-- `en = uio_in[1]`: Begin program execution 
+### LOAD: the MCU sends one command per clock
 
-### Outputs
+- `req_valid = ui_in[0]`: Execute the command on the pins
+- `cmd[1:0] = ui_in[2:1]`: 00 load read instruction, 01 load write instruction, 10 load memory word, 11 start the run
+- `core_sel = ui_in[3]`: Core receiving the instruction
+- `req_addr[1:0] = ui_in[5:4]`: Instruction address, or memory address
+- `req_data = ui_in[6]`: Instruction data bit, or memory word
+- `ui_in[7]`, `uio_in[7:0]`: unused in this configuration. All `uio` pins are inputs (`uio_oe = 0`), so larger configurations have 16 input bits
 
-- `done = uo_out[0]`: Program done
-- `state = uo_out[6:1]`: Cache state after program is finished
-- `cycle_count = uio_out[7:2]`: Program cycle count
+### RUN
+
+- `protocol_sel[1:0] = ui_in[4:3]`: 00 MSI, 01 MESI, 10 MOESI (11 is reserved and behaves as MOESI). Driven together with the start command and held until `resp_valid = 1`
+- `cycle_count[6:0] = uo_out[7:1]`: counts up during the run
+- All other inputs are ignored. The MCU must release its `uio` drivers after the start command
+
+### READ: the ASIC returns one cache line per `rd_next`
+
+- `resp_valid = uo_out[0]`: The run has finished; `cycle_count` is final and a line is on `uio_out`
+- `cycle_count[6:0] = uo_out[7:1]`: Program cycle count, saturating at 127
+- `line[4:0] = uio_out[4:0]`: Cache line `{tag, data, valid, dirty, exclusive}` (see [encodings.md](./encodings.md)). All `uio` pins are outputs (`uio_oe = 8'hFF`); `uio_out[7:5] = 0`
+- `rd_next = ui_in[0]`: Advance to the next line on the clock
 
 ## Specifications
 
-- Bus uses round-robin arbitration
-- 2 cores with their own private cache
-    - Each cache has 2 lines
-    - Each cache line holds a 2 bit address, 1 data bit, and 3 bits for coherence state
-- Each core has its own instruction cache with a capacity of 4 memory instructions
-- Memory instructions are a read/write operation with an address and data (only for write operations)
-    - A memory instruction has 1 read/write bit, 2 address bits, and 1 data bit
-- Main memory has 4 words of data
-    - Each word of data is 1 bit
-- Cache write policy is write-back
+- 2 cores, each with a 4-instruction instruction cache and a 2-line private data cache
+    - A memory instruction is `{address[1:0], data, read/write}`, 4 bits
+    - A cache line is `{tag, data, valid, dirty, exclusive}`, 5 bits; direct mapped, one word per line
+- Main memory has 4 words of 1 bit
+- Write policy: write-back, write-allocate, no fetch on write (write-validate). A write miss only invalidates other copies
+- Bus transactions: `RD` (fetch), `INV` (invalidate others), `WB` (write back). Snooping caches see every transaction
+- Bus uses round-robin arbitration. A transaction that touches main memory occupies the bus for `1 + MEM_LATENCY` cycles (default 3); one served without memory takes 1 cycle
+- Only MODIFIED/OWNER lines supply data to other caches; otherwise memory does
+- Storage: 77 flip-flops (see [uarch.md](./uarch.md))
 
 ## Timeline
 
@@ -58,11 +66,11 @@ Deadline: November 5th
 - The main functional blocks of the chip are:
     - Decoder (Will)
     - Bus (Will)
-        - Round-robin arbitration scheme
-    - M(O)(E)SI FSM (Will and Greg)
-        - Start with the MOESI FSM design and add additional logic to gate the O and E states based on what protocol is configured
+        - Round-robin arbitration scheme and the memory latency model
+    - M(O)(E)SI protocol (Will and Greg)
+        - Implemented as the MOESI transitions with the E and O states gated by the configured protocol
     - Cache Controller (Will and Greg)
-        - Handles variable memory latency with ready/valid handshaking (since a cache access is either a hit or a miss)
+        - Recomputes its bus request every cycle from the instruction and the cache line; commits when the bus signals `done`
 
 ### Verification
 

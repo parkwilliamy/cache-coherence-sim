@@ -3,6 +3,6 @@
 
 package top_params;
 
-    localparam N_CORES = 4;
+    localparam N_CORES = 2;
 
 endpackage
