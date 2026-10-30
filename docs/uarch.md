@@ -60,7 +60,7 @@ Each interface is a SystemVerilog `interface` with one modport per side, defined
 | decoder | `icache_load` | write `load_inst` into `icache[pc]` this cycle |
 | decoder | `inst_t load_inst` | instruction being loaded (*broadcast*) |
 | core | `core_done` | `pc == ICACHE_SIZE` |
-| core | `line_t lines[DCACHE_SIZE]` | the data cache, for readback |
+| core | `line_t lines[DCACHE_SIZE]` | the data cache, for readback; an unpacked array with one `line_t` per line |
 
 ### `bus_if`: core ↔ bus, one per core
 

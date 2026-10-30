@@ -10,7 +10,7 @@ module cache_ctrl (
     input rst_n,
     exec_if.cache_ctrl exec,
     bus_if.core bus,
-    output line_t lines,
+    output line_t lines[DCACHE_SIZE],
     input logic [1:0] protocol
 );
 

@@ -20,6 +20,5 @@ Fetches instructions from its instruction cache and feeds them to its cache cont
 - `local_inst = icache[pc[$clog2(ICACHE_SIZE)-1:0]]`
 - `inst_done` (from `cache_ctrl`): `pc <= pc + 1`
 - `core_done = pc == ICACHE_SIZE`, only meaningful while `run`; the decoder only looks at it then.
-- `lines = cache_ctrl.cache`, for readback.
 
 Every core executes exactly `ICACHE_SIZE` instructions in load order. A slot that was never loaded holds 0, a read of address 0. The cache controller keeps snooping after the core has finished, so the final cache states reflect everything the other core did afterwards.

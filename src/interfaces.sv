@@ -17,7 +17,7 @@ interface dec_if;
     logic  icache_load;  // write load_inst into icache[pc] this cycle
     inst_t load_inst;    // instruction being loaded (broadcast)
     logic  core_done;    // pc == ICACHE_SIZE
-    line_t [DCACHE_SIZE-1:0] lines;  // the data cache, for readback
+    line_t lines [DCACHE_SIZE];  // the data cache, for readback
 
     modport decoder (output start, run, icache_load, load_inst,
                      input  core_done, lines);

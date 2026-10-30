@@ -24,6 +24,8 @@ Loads the program and main memory from the MCU, starts the run, counts cycles an
 
 READ is terminal, so the lines can be read back as many times as needed.
 
+`lines[c][k]` above is `dec[c].lines[k]`, the unpacked array in each core's `dec_if`. An interface array cannot be indexed with a variable, so the decoder copies each `dec[c].lines` into a local `line_t all_lines[N_CORES][DCACHE_SIZE]` in a generate loop and indexes that with `rd_idx`.
+
 Command decode, active in LOAD only:
 
 ```
