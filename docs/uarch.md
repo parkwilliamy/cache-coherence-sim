@@ -33,21 +33,23 @@ Derived:
 - `line_t {tag, data, v, d, x}`
 - `req_type_t` = `RD`, `INV`, `WB` (2 bits)
 - `e_en`, `o_en`: EXCLUSIVE/OWNER enables decoded from `protocol[1:0]` (see encodings.md)
+- `phase_t` = `LOAD`, `RUN`, `READ`; `cmd_t` = the four MCU commands; `cmd_word_t`, `rd_word_t` = the MCU pin words
+
+All of these, with the parameters above, are in the package `top_params` (`src/top_params.sv`).
 
 ## Structure
 
 ```
 pins --> decoder <==dec_if[i]==> core[i] = { icache, pc, cache_ctrl { cache[DCACHE_SIZE] } }
-         decoder --mem_if (write side, while loading)--+
-                                                       +--mux--> main_mem
-         core[i] <==bus_if[i]==> bus -------mem_if-----+
+         decoder ----mem_if (while loading)----> main_mem { mux on loading, mem[MEM_SIZE] }
+         core[i] <==bus_if[i]==> bus ---mem_if---> main_mem
 ```
 
 The coherence protocol lives entirely in each `cache_ctrl`; the bus only arbitrates, broadcasts and models memory latency.
 
 ## Interfaces
 
-Each interface is a SystemVerilog `interface` with one modport per side. Signal widths are `ADDR_WIDTH` for `addr`, `DATA_WIDTH` for `data`, and 1 unless a type is given. Where an interface is instantiated once per core, the signals marked *broadcast* carry the same value in every instance.
+Each interface is a SystemVerilog `interface` with one modport per side, defined in `src/interfaces.sv`. Signal widths are `ADDR_WIDTH` for `addr`, `DATA_WIDTH` for `data`, and 1 unless a type is given. Where an interface is instantiated once per core, the signals marked *broadcast* carry the same value in every instance.
 
 ### `dec_if`: decoder ↔ core, one per core
 
@@ -79,7 +81,7 @@ Each interface is a SystemVerilog `interface` with one modport per side. Signal 
 | writer | `we`, `addr`, `din` | write `din` to `mem[addr]` at the clock edge |
 | memory | `dout` | `mem[addr]`, combinational |
 
-Two writers exist: the decoder during LOAD (it ignores `dout`) and the bus otherwise. The top level muxes them on `loading`.
+Two writers exist: the decoder during LOAD (it ignores `dout`) and the bus otherwise. `main_mem` has one instance of this interface for each and selects between them internally on `loading`; see the module description below.
 
 ### `exec_if`: core ↔ cache controller, inside `core`
 
@@ -92,7 +94,7 @@ Two writers exist: the decoder during LOAD (it ignores `dout`) and the bus other
 
 - `clk`, `rst_n`: every module; `rst_n` is asynchronous, active low, and every register resets to 0.
 - `protocol[1:0] = ui_in[4:3]`: to every `core` and to the `bus`, not registered; meaningful during RUN only.
-- `loading`: decoder to the top-level memory write mux.
+- `loading`: decoder to `main_mem`; selects the decoder's `mem_if` while high, the bus's otherwise.
 - MCU pins: `ui_in`, `uio_in`, `uo_out`, `uio_out` and `uio_oe` belong to the decoder, which gives them phase-dependent meanings ([decoder.md](./decoder.md), [encodings.md](./encodings.md)); only `protocol` is sliced off at the top.
 
 ## Modules
@@ -103,10 +105,12 @@ Two writers exist: the decoder during LOAD (it ignores `dout`) and the bus other
 | `core` | `dec_if` (core), `bus_if` (core) | in: `protocol` |
 | `cache_ctrl` | `exec_if` (cache_ctrl), `bus_if` (core), `dec_if.lines` | in: `protocol` |
 | `bus` | `bus_if[N_CORES]` (bus), `mem_if` (writer) | in: `protocol` |
-| `main_mem` | `mem_if` (memory) | `MEM_SIZE x DATA_WIDTH` register file |
-| `tt_um_cache_coherence_sim` | none | pins to and from the decoder, `protocol = ui_in[4:3]`, the `mem_if` writer mux on `loading` |
+| `main_mem` | `mem_if` (memory) from the decoder, `mem_if` (memory) from the bus | in: `loading`. `MEM_SIZE x DATA_WIDTH` register file behind an internal mux (below) |
+| `tt_um_cache_coherence_sim` | none | pins to and from the decoder, `protocol = ui_in[4:3]` |
 
 `core` passes `bus_if` and `dec_if.lines` straight through to its `cache_ctrl`; the `icache` and `pc` logic in `core` uses only `dec_if` and `exec_if`.
+
+`main_mem` selects one of its two `mem_if` instances with `loading` and connects the register file to it: `we`, `addr` and `din` come from the selected interface, and `dout = mem[addr]` of the selected interface is driven to both. One write port and one read port serve both writers, which is enough because the decoder only writes (during LOAD) and the bus only accesses memory after LOAD. The unselected interface's `we` is ignored.
 
 ## Storage budget
 

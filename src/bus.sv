@@ -1,17 +1,19 @@
 `timescale 1ns/1ps
 `default_nettype none
 
-// Round Robin Arbiter 
+/* verilator lint_off IMPORTSTAR */
 
-module arbiter #(
-    parameter int N_CORES = top_params::N_CORES
-) (
+import top_params::*;
+
+module bus (
     input  clk,
     input  rst_n,
-    input  logic [N_CORES-1:0] req,    // Request bit vector
-    output logic [N_CORES-1:0] gnt  // Grant bit vector
+    bus_if.bus bus[N_CORES],
+    mem_if.writer mem,
+    input logic [1:0] protocol
 );
 
+    /*
     logic [N_CORES-1:0] mask, masked_req, gnt_masked, gnt_unmasked;
 
     always_ff @ (posedge clk or negedge rst_n) begin
@@ -26,5 +28,8 @@ module arbiter #(
     assign gnt_masked = masked_req & (~masked_req + 1);
     assign gnt_unmasked = req & (~req + 1);
     assign gnt = (|masked_req) ? gnt_masked : gnt_unmasked;
+    */
 
 endmodule
+
+/* verilator lint_off IMPORTSTAR */

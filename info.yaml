@@ -3,7 +3,7 @@ project:
   title:        "Cache Coherence Protocol Simulator"      # Project title
   author:       "William Park"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "Simulates MSI, MESI, and MOESI cache coherence protocols on a multi-core system."      # One line description of what your project does
+  description:  "Emulates MSI, MESI, and MOESI cache coherence protocols on a multi-core system."      # One line description of what your project does
   language:     "SystemVerilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
   clock_hz:     0       # Clock frequency in Hz (or 0 if not applicable)
 
@@ -18,7 +18,12 @@ project:
   # Don't forget to also update `PROJECT_SOURCES` in test/Makefile.
   source_files:
     - "top_params.sv"
-    - "arbiter.sv"
+    - "interfaces.sv"
+    - "cache_ctrl.sv"
+    - "decoder.sv"
+    - "core.sv"
+    - "main_mem.sv"
+    - "bus.sv"
     - "tt_um_cache_coherence_sim.sv"
 
 

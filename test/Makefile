@@ -7,7 +7,12 @@ FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES += top_params.sv
-PROJECT_SOURCES += arbiter.sv
+PROJECT_SOURCES += interfaces.sv
+PROJECT_SOURCES += bus.sv
+PROJECT_SOURCES += decoder.sv
+PROJECT_SOURCES += cache_ctrl.sv
+PROJECT_SOURCES += core.sv
+PROJECT_SOURCES += main_mem.sv
 PROJECT_SOURCES += tt_um_cache_coherence_sim.sv
 
 ifneq ($(GATES),yes)
