@@ -15,7 +15,7 @@ Fetches instructions from its instruction cache and feeds them to its cache cont
 
 - Reset: `pc = 0`.
 - `icache_load`: `icache[pc[$clog2(ICACHE_SIZE)-1:0]] <= load_inst; pc <= pc + 1`. The MCU sends exactly `ICACHE_SIZE` instructions per core.
-- `start`: `pc <= 0`.
+- `start` pulse: `pc <= 0`.
 - `local_valid = run && pc != ICACHE_SIZE`
 - `local_inst = icache[pc[$clog2(ICACHE_SIZE)-1:0]]`
 - `inst_done` (from `cache_ctrl`): `pc <= pc + 1`

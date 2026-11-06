@@ -12,7 +12,7 @@ Module interfaces and ports are in [uarch.md](./uarch.md); the reasoning behind 
 
 ## Pinout
 
-Pin meaning depends on the phase of a run (LOAD, RUN, READ). Positions below are for the default configuration; the general bit formats are in [encodings.md](./encodings.md).
+Pin meaning depends on the state of a run (LOAD, RUN, READ). Positions below are for the default configuration; the general bit formats are in [encodings.md](./encodings.md).
 
 ### LOAD: the MCU sends one command per clock
 

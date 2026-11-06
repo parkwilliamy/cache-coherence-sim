@@ -33,7 +33,7 @@ Derived:
 - `line_t {tag, data, v, d, x}`
 - `req_type_t` = `RD`, `INV`, `WB` (2 bits)
 - `e_en`, `o_en`: EXCLUSIVE/OWNER enables decoded from `protocol[1:0]` (see encodings.md)
-- `phase_t` = `LOAD`, `RUN`, `READ`; `cmd_t` = the four MCU commands; `cmd_word_t`, `rd_word_t` = the MCU pin words
+- `state_t` = `LOAD`, `RUN`, `READ`; `cmd_t` = the four MCU commands `CMD_LOAD_RD`, `CMD_LOAD_WR`, `CMD_LOAD_MEM`, `CMD_START` (see encodings.md, "MCU pin words"); `cmd_word_t`, `rd_word_t` = the MCU pin words
 
 All of these, with the parameters above, are in the package `top_params` (`src/top_params.sv`).
 
@@ -55,8 +55,8 @@ Each interface is a SystemVerilog `interface` with one modport per side, defined
 
 | Driven by | Signal | Meaning |
 |---|---|---|
-| decoder | `start` | 1-cycle pulse; the core resets `pc` |
-| decoder | `run` | high during the RUN phase |
+| decoder | `start` | 1-cycle pulse, raised by the start command (`CMD_START`); the core resets `pc` |
+| decoder | `run` | high during the RUN state |
 | decoder | `icache_load` | write `load_inst` into `icache[pc]` this cycle |
 | decoder | `inst_t load_inst` | instruction being loaded (*broadcast*) |
 | core | `core_done` | `pc == ICACHE_SIZE` |
@@ -95,7 +95,7 @@ Two writers exist: the decoder during LOAD (it ignores `dout`) and the bus other
 - `clk`, `rst_n`: every module; `rst_n` is asynchronous, active low, and every register resets to 0.
 - `protocol[1:0] = ui_in[4:3]`: to every `core` and to the `bus`, not registered; meaningful during RUN only.
 - `loading`: decoder to `main_mem`; selects the decoder's `mem_if` while high, the bus's otherwise.
-- MCU pins: `ui_in`, `uio_in`, `uo_out`, `uio_out` and `uio_oe` belong to the decoder, which gives them phase-dependent meanings ([decoder.md](./decoder.md), [encodings.md](./encodings.md)); only `protocol` is sliced off at the top.
+- MCU pins: `ui_in`, `uio_in`, `uo_out`, `uio_out` and `uio_oe` belong to the decoder, which gives them state-dependent meanings ([decoder.md](./decoder.md), [encodings.md](./encodings.md)); only `protocol` is sliced off at the top.
 
 ## Modules
 
@@ -121,5 +121,5 @@ Two writers exist: the decoder during LOAD (it ignores `dout`) and the bus other
 | data caches, 2 x 2 x 5 | 20 |
 | main memory, 4 x 1 | 4 |
 | bus: `wait` 2, `gidx` 1, `last` 1 | 4 |
-| decoder: `phase` 2, `rd_idx` 2, `cycle_count` 7 | 11 |
+| decoder: `state` 2, `rd_idx` 2, `cycle_count` 7 | 11 |
 | **total** | **77** |

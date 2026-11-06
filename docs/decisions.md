@@ -23,12 +23,12 @@ Each entry: what was decided and why. Numbered so they can be referenced in revi
 
 ## Decoder, core and MCU interface
 
-14. **Protocol read from the pins, not registered.** Saves a register and the load-phase logic. `ui_in[4:3]` is only read during RUN, so during LOAD the same pins carry command payload; the MCU drives the protocol with the start command (whose payload is don't-care) and holds it.
-15. **`pc` doubles as the load pointer.** Counts loads during LOAD, is cleared by `start`, counts completed instructions during RUN; `pc == ICACHE_SIZE` means finished. One counter serves both phases and doubles as the done flag.
+14. **Protocol read from the pins, not registered.** Saves a register and the load-state logic. `ui_in[4:3]` is only read during RUN, so during LOAD the same pins carry command payload; the MCU drives the protocol with the start command (whose payload is don't-care) and holds it.
+15. **`pc` doubles as the load pointer.** Counts loads during LOAD, is cleared by the `start` pulse, counts completed instructions during RUN; `pc == ICACHE_SIZE` means finished. One counter serves both states and doubles as the done flag.
 16. **Readback is a counter in the decoder.** `rd_idx` selects a line out of all cores' lines; one line per `rd_next`. The cores need no readback logic, and the line index is not output because the MCU knows the order.
 17. **Single-step clocking only where it matters.** The MCU steps the clock during LOAD (one command per clock) and may free-run during RUN. Readback advances only on the `rd_next` strobe, so the clock may still be running when READ begins and no line can be skipped. Without the strobe, a free-running clock would overrun the readback before the MCU could stop it.
-18. **Pinout: `uio` direction follows the phase.** `uio_oe = 0` during LOAD and RUN and `8'hFF` during READ, giving 16 input bits for commands and 16 output bits for results. Loading, memory writes and start are one 2-bit `cmd` field, and `protocol` shares pins with the command payload. Input and output words are packed from bit 0 upward so the layout follows the parameters. Limits: `3 + $clog2(N_CORES) + ADDR_WIDTH + DATA_WIDTH <= 16` and `1 + CYCLE_WIDTH + LINE_WIDTH <= 16`. With a fixed `uio` direction only 10 input bits would be available, which the default configuration already uses up. The MCU must release its `uio` drivers after the start command. `cycle_count` is `CYCLE_WIDTH` bits and saturates, so an overlong run reads as the maximum rather than wrapping.
-19. **One run per reset.** Phases are LOAD → RUN → READ; READ is terminal and `rd_idx` wraps, so the lines can be re-read but nothing can restart the run or the cycle counter by accident.
+18. **Pinout: `uio` direction follows the state.** `uio_oe = 0` during LOAD and RUN and `8'hFF` during READ, giving 16 input bits for commands and 16 output bits for results. Loading, memory writes and start are one 2-bit `cmd` field, and `protocol` shares pins with the command payload. Input and output words are packed from bit 0 upward so the layout follows the parameters. Limits: `3 + $clog2(N_CORES) + ADDR_WIDTH + DATA_WIDTH <= 16` and `1 + CYCLE_WIDTH + LINE_WIDTH <= 16`. With a fixed `uio` direction only 10 input bits would be available, which the default configuration already uses up. The MCU must release its `uio` drivers after the start command. `cycle_count` is `CYCLE_WIDTH` bits and saturates, so an overlong run reads as the maximum rather than wrapping.
+19. **One run per reset.** States are LOAD → RUN → READ; READ is terminal and `rd_idx` wraps, so the lines can be re-read but nothing can restart the run or the cycle counter by accident.
 20. **Memory port muxed inside `main_mem`.** `main_mem` takes a `mem_if` from the decoder and one from the bus and selects on `loading`: decoder during LOAD, bus otherwise. Neither writer needs to know about the other, the top level only wires interfaces, and a single read and write port serve both because their accesses never overlap in time.
 
 ## Storage
@@ -39,7 +39,7 @@ Further cuts, not taken: streaming instructions from the MCU instead of storing 
 
 ## Pin budget
 
-| Phase | Direction | Available | Used by default config | Limit |
+| State | Direction | Available | Used by default config | Limit |
 |---|---|---|---|---|
 | LOAD | in | 16 | 7 | `3 + $clog2(N_CORES) + ADDR_WIDTH + DATA_WIDTH <= 16` |
 | RUN | in | 8 (`ui_in`) | 2 | `protocol` only |

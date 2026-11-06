@@ -65,7 +65,7 @@ package top_params;
         READ = 2'b10   // terminal
     } state_t;
 
-    // ---- MCU command (cmd_t), LOAD phase -------------------------------------
+    // ---- MCU command (cmd_t), LOAD state -------------------------------------
     // cmd[0] is the instruction op for the two load-instruction commands.
     typedef enum logic [1:0] {
         CMD_LOAD_RD  = 2'b00,  // load read instruction into core core_sel
