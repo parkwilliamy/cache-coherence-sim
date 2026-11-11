@@ -22,6 +22,10 @@ module decoder (
     logic [RD_WIDTH-1:0] rd_idx;
     logic [CYCLE_WIDTH-1:0] cycle_count;
 
+    for (genvar i = 0; i < N_CORES; i++) begin : gen_dec_run
+        assign dec[i].run = (current_state == RUN);
+    end
+
     always_ff @ (posedge clk) begin
         if (!rst_n) begin
             current_state <= LOAD;
@@ -55,11 +59,6 @@ module decoder (
             LOAD: begin
                 loading = 1;
                 uio_oe = '0;
-            end
-            RUN: begin
-                for (int i = 0; i < N_CORES; i++) begin
-                    dec[i].run = 1;
-                end
             end
             READ: begin
                 uo_out[0] = 1; // set resp_valid flag
