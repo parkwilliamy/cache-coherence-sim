@@ -37,12 +37,11 @@ module decoder (
                 end
                 RUN: begin
                     cycle_count <= cycle_count+1;
-                    next_state = (&dec.core_done) // need to update syntax
+                    next_state = (&dec.core_done) ? LOAD : RUN;
                 end
                 READ: begin
                     next_state = READ;
                 end
-
 
             endcase
 
@@ -67,7 +66,6 @@ module decoder (
                 uio_oe = 8'hFF; // set all bidir pins to outputs
                 
             end
-            default:
 
         endcase
 
