@@ -21,9 +21,11 @@ module decoder (
     logic [1:0] current_state, next_state, cmd;
     logic [RD_WIDTH-1:0] rd_idx;
     logic [CYCLE_WIDTH-1:0] cycle_count;
+    logic [N_CORES-1:0] core_done_by_core;
 
     for (genvar i = 0; i < N_CORES; i++) begin : gen_dec_run
         assign dec[i].run = (current_state == RUN);
+        assign core_done_by_core[i] = dec[i].core_done;
     end
 
     always_ff @ (posedge clk) begin
@@ -41,7 +43,7 @@ module decoder (
                 end
                 RUN: begin
                     cycle_count <= cycle_count+1;
-                    next_state = (&dec.core_done) ? LOAD : RUN;
+                    next_state = (&core_done_by_core) ? LOAD : RUN;
                 end
                 READ: begin
                     next_state = READ;

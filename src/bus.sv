@@ -59,7 +59,7 @@ module bus (
             for (int i = 0; i < N_CORES; i++) begin
                 automatic int idx = (last + 1 + i) % N_CORES;
                 if (reqs[idx]) begin
-                    grant_idx = idx;
+                    grant_idx = CORE_SEL_WIDTH'(idx);
                     break;
                 end
                 //loops through requests after last given request, and grants the first one it finds
@@ -77,7 +77,7 @@ module bus (
         owner = 1'b0;
         owner_data = '0;
         for (int i = 0; i < N_CORES; i++) begin
-            if (i != cur) begin
+            if (CORE_SEL_WIDTH'(i) != cur) begin
                 shared |= snoop_hit_by_core[i];
                 owner |= snoop_owner_by_core[i];
                 owner_data |= snoop_owner_by_core[i] ? snoop_data_by_core[i] : '0;
@@ -93,12 +93,12 @@ module bus (
 
         if (grant) begin
             for (int i = 0; i < N_CORES; i++) begin
-                snoop_valid_by_core[i] = (i != cur);
+                snoop_valid_by_core[i] = (CORE_SEL_WIDTH'(i) != cur);
             end
         end
 
         for (int i = 0; i < N_CORES; i++) begin
-            if (i == cur) begin
+            if (CORE_SEL_WIDTH'(i) == cur) begin
                 done_by_core[i] = grant ? !mem_access : (wait_count == 1);
             end
         end
@@ -112,13 +112,13 @@ module bus (
         if (!rst_n) begin
             wait_count <= '0;
             gidx <= '0;
-            last <= N_CORES - 1;
+            last <= CORE_SEL_WIDTH'(N_CORES - 1);
         end else begin
             if (grant) begin
                 last <= grant_idx;
                 if (mem_access) begin
                     gidx <= grant_idx;
-                    wait_count <= MEM_LATENCY;
+                    wait_count <= WAIT_WIDTH'(MEM_LATENCY);
                 end
             end else if (busy) begin
                 wait_count <= wait_count - 1;
