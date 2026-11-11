@@ -3,6 +3,7 @@
 
 /* verilator lint_off DECLFILENAME */
 /* verilator lint_off IMPORTSTAR */
+import top_params::*;
 
 // Interfaces between modules, one modport per side. Spec: docs/uarch.md.
 // Where an interface is instantiated once per core, the signals marked
