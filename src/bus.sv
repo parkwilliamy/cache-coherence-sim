@@ -14,6 +14,12 @@ module bus (
 );
 
     logic [N_CORES-1:0] reqs;
+    req_type_t req_type_by_core [N_CORES];
+    logic [ADDR_WIDTH-1:0] req_addr_by_core [N_CORES];
+    logic [DATA_WIDTH-1:0] req_data_by_core [N_CORES];
+    logic [N_CORES-1:0] snoop_hit_by_core, snoop_owner_by_core;
+    logic [DATA_WIDTH-1:0] snoop_data_by_core [N_CORES];
+    logic [N_CORES-1:0] done_by_core, snoop_valid_by_core;
     logic [CORE_SEL_WIDTH-1:0] grant_idx, cur;
     logic [WAIT_WIDTH-1:0] wait_count;
     logic [CORE_SEL_WIDTH-1:0] gidx, last;
@@ -23,11 +29,24 @@ module bus (
     req_type_t req_type;
     logic [DATA_WIDTH-1:0] owner_data;
 
+    for (genvar i = 0; i < N_CORES; i++) begin : gen_bus_if
+        assign reqs[i] = bus[i].req;
+        assign req_type_by_core[i] = bus[i].req_type;
+        assign req_addr_by_core[i] = bus[i].addr;
+        assign req_data_by_core[i] = bus[i].data;
+        assign snoop_hit_by_core[i] = bus[i].snoop_hit;
+        assign snoop_owner_by_core[i] = bus[i].snoop_owner;
+        assign snoop_data_by_core[i] = bus[i].snoop_data;
+
+        assign bus[i].done = done_by_core[i];
+        assign bus[i].snoop_valid = snoop_valid_by_core[i];
+        assign bus[i].snoop_type = req_type;
+        assign bus[i].snoop_addr = req_addr;
+        assign bus[i].resp_shared = shared;
+        assign bus[i].resp_data = owner ? owner_data : mem.dout;
+    end
+
     always_comb begin
-        reqs = '0;
-        for (int i = 0; i < N_CORES; i++) begin
-            reqs[i] = bus[i].req;
-        end
         //loads all requests onto the bus
 
         busy = (wait_count != '0);
@@ -50,18 +69,18 @@ module bus (
 
         cur = busy ? gidx : grant_idx;
         //if busy, we are still processing gidx, otherwise we are processing the new grant_idx
-        req_type = bus[cur].req_type;
-        req_addr = bus[cur].addr;
-        req_data = bus[cur].data;
+        req_type = req_type_by_core[cur];
+        req_addr = req_addr_by_core[cur];
+        req_data = req_data_by_core[cur];
 
         shared = 1'b0;
         owner = 1'b0;
         owner_data = '0;
         for (int i = 0; i < N_CORES; i++) begin
             if (i != cur) begin
-                shared |= bus[i].snoop_hit;
-                owner |= bus[i].snoop_owner;
-                owner_data |= bus[i].snoop_owner ? bus[i].snoop_data : '0;
+                shared |= snoop_hit_by_core[i];
+                owner |= snoop_owner_by_core[i];
+                owner_data |= snoop_owner_by_core[i] ? snoop_data_by_core[i] : '0;
             end
         end
 
@@ -69,27 +88,19 @@ module bus (
         served_by_owner = (req_type == RD) && owner && o_en;
         mem_access = (req_type == WB) || ((req_type == RD) && !served_by_owner);
 
-        for (int i = 0; i < N_CORES; i++) begin
-            bus[i].done = 1'b0;
-            bus[i].snoop_valid = 1'b0;
-            bus[i].snoop_type = req_type;
-            bus[i].snoop_addr = req_addr;
-            bus[i].resp_shared = 1'b0;
-            bus[i].resp_data = '0;
-        end
+        done_by_core = '0;
+        snoop_valid_by_core = '0;
 
         if (grant) begin
             for (int i = 0; i < N_CORES; i++) begin
-                bus[i].snoop_valid = (i != cur);
+                snoop_valid_by_core[i] = (i != cur);
             end
         end
 
         for (int i = 0; i < N_CORES; i++) begin
             if (i == cur) begin
-                bus[i].done = grant ? !mem_access : (wait_count == 1);
+                done_by_core[i] = grant ? !mem_access : (wait_count == 1);
             end
-            bus[i].resp_shared = shared;
-            bus[i].resp_data = owner ? owner_data : mem.dout;
         end
 
         mem.addr = req_addr;
