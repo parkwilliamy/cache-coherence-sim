@@ -39,7 +39,10 @@ module decoder (
                     cycle_count <= cycle_count+1;
                     next_state = (&dec.core_done) // need to update syntax
                 end
-                READ:
+                READ: begin
+                    next_state = READ;
+                end
+
 
             endcase
 
