@@ -18,7 +18,7 @@ module decoder (
     output logic [7:0] uio_oe
 );
 
-    logic [1:0] current_state, next_state, cmd;
+    logic [1:0] current_state, next_state;
     logic [RD_WIDTH-1:0] rd_idx;
     logic [CYCLE_WIDTH-1:0] cycle_count;
     logic [N_CORES-1:0] core_done_by_core;
@@ -28,48 +28,46 @@ module decoder (
         assign core_done_by_core[i] = dec[i].core_done;
     end
 
+    always_comb begin
+        next_state = current_state;
+        case (current_state)
+            LOAD: begin
+                if (ui_in[2:1] == CMD_START) begin
+                    next_state = RUN;
+                end
+            end
+            RUN: begin
+                if (&core_done_by_core) begin
+                    next_state = LOAD;
+                end
+            end
+            READ: next_state = READ;
+            default: next_state = LOAD;
+        endcase
+    end
+
     always_ff @ (posedge clk) begin
         if (!rst_n) begin
             current_state <= LOAD;
             rd_idx <= 0;
             cycle_count <= 0;
         end else begin
-
-            case (current_state)
-
-                LOAD: begin
-                    cmd = ui_in[2:1];
-                    next_state = (cmd == CMD_START) ? RUN : LOAD;
-                end
-                RUN: begin
-                    cycle_count <= cycle_count+1;
-                    next_state = (&core_done_by_core) ? LOAD : RUN;
-                end
-                READ: begin
-                    next_state = READ;
-                end
-
-            endcase
-
+            current_state <= next_state;
+            if (current_state == RUN) begin
+                cycle_count <= cycle_count + 1'b1;
+            end
         end
     end
 
     always_comb begin
-
-        case (current_state)
-
-            LOAD: begin
-                loading = 1;
-                uio_oe = '0;
-            end
-            READ: begin
-                uo_out[0] = 1; // set resp_valid flag
-                uio_oe = 8'hFF; // set all bidir pins to outputs
-                
-            end
-
-        endcase
-
+        loading = (current_state == LOAD);
+        uo_out = '0;
+        uio_out = '0;
+        uio_oe = '0;
+        if (current_state == READ) begin
+            uo_out[0] = 1'b1;
+            uio_oe = 8'hFF;
+        end
     end
 
 endmodule

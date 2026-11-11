@@ -22,45 +22,39 @@ module cache_ctrl (
     logic e_en, o_en;
 
     always_comb begin
+        snoop_idx = bus.snoop_addr[IDX_WIDTH-1:0];
+        snoop_tag = bus.snoop_addr[ADDR_WIDTH-1:IDX_WIDTH];
+        snoop_line = cache[snoop_idx];
+        snoop_hit = snoop_line.v && snoop_line.tag == snoop_tag;
+        bus.snoop_hit = snoop_hit;
+        bus.snoop_owner = snoop_hit && snoop_line.d;
+        bus.snoop_data = snoop_line.data;
+    end
+
+    always_comb begin
+        e_en = protocol[1] || protocol[0];
+        o_en = protocol[1];
+
         idx = exec.local_inst.addr[IDX_WIDTH-1:0];
         tag = exec.local_inst.addr[ADDR_WIDTH-1:IDX_WIDTH];
         local_line = cache[idx];
         hit = local_line.v && local_line.tag == tag;
         evict = local_line.v && local_line.d && !hit;
 
-        snoop_idx = bus.snoop_addr[IDX_WIDTH-1:0];
-        snoop_tag = bus.snoop_addr[ADDR_WIDTH-1:IDX_WIDTH];
-        snoop_line = cache[snoop_idx];
-        snoop_hit = snoop_line.v && snoop_line.tag == snoop_tag;
-
-        e_en = protocol[1] || protocol[0];
-        o_en = protocol[1];
-
-        bus.snoop_hit = snoop_hit;
-        bus.snoop_owner = snoop_hit && snoop_line.d;
-        bus.snoop_data = snoop_line.data;
-
         bus.req = 1'b0;
         bus.req_type = RD;
         bus.addr = exec.local_inst.addr;
         bus.data = '0;
-        exec.inst_done = 1'b0;
 
         for (int i = 0; i < DCACHE_SIZE; i++) begin
             lines[i] = cache[i];
         end
 
-        if (!bus.snoop_valid && exec.local_valid) begin
+        if (exec.local_valid) begin
             if (hit) begin
-                if (!exec.local_inst.op) begin
-                    exec.inst_done = 1'b1;
-                    
-                end else if (local_line.x) begin
-                    exec.inst_done = 1'b1;
-                end else begin
+                if (exec.local_inst.op && !local_line.x) begin
                     bus.req = 1'b1;
                     bus.req_type = INV;
-                    exec.inst_done = bus.done;
                 end
             end else if (evict) begin
                 bus.req = 1'b1;
@@ -70,10 +64,23 @@ module cache_ctrl (
             end else if (exec.local_inst.op) begin
                 bus.req = 1'b1;
                 bus.req_type = INV;
-                exec.inst_done = bus.done;
             end else begin
                 bus.req = 1'b1;
                 bus.req_type = RD;
+            end
+        end
+    end
+
+    always_comb begin
+        exec.inst_done = 1'b0;
+        if (!bus.snoop_valid && exec.local_valid) begin
+            if (hit) begin
+                if (!exec.local_inst.op || local_line.x) begin
+                    exec.inst_done = 1'b1;
+                end else begin
+                    exec.inst_done = bus.done;
+                end
+            end else if (!evict) begin
                 exec.inst_done = bus.done;
             end
         end

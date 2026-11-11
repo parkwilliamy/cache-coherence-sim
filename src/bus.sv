@@ -73,6 +73,15 @@ module bus (
         req_addr = req_addr_by_core[cur];
         req_data = req_data_by_core[cur];
 
+        snoop_valid_by_core = '0;
+        if (grant) begin
+            for (int i = 0; i < N_CORES; i++) begin
+                snoop_valid_by_core[i] = (CORE_SEL_WIDTH'(i) != cur);
+            end
+        end
+    end
+
+    always_comb begin
         shared = 1'b0;
         owner = 1'b0;
         owner_data = '0;
@@ -89,14 +98,6 @@ module bus (
         mem_access = (req_type == WB) || ((req_type == RD) && !served_by_owner);
 
         done_by_core = '0;
-        snoop_valid_by_core = '0;
-
-        if (grant) begin
-            for (int i = 0; i < N_CORES; i++) begin
-                snoop_valid_by_core[i] = (CORE_SEL_WIDTH'(i) != cur);
-            end
-        end
-
         for (int i = 0; i < N_CORES; i++) begin
             if (CORE_SEL_WIDTH'(i) == cur) begin
                 done_by_core[i] = grant ? !mem_access : (wait_count == 1);
