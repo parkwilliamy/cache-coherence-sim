@@ -2,6 +2,11 @@
 # See https://docs.cocotb.org/en/stable/quickstart.html for more info
 
 # defaults
+# The gate-level test (GATES=yes) runs in the Tiny Tapeout gl_test action, which
+# only installs Icarus Verilog. RTL tests need Verilator for the SystemVerilog sources.
+ifeq ($(GATES),yes)
+SIM ?= icarus
+endif
 SIM ?= verilator
 FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
