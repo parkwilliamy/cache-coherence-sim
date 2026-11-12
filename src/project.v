@@ -17,37 +17,37 @@ module tt_um_cache_coherence_sim (
 	input wire ena;
 	input wire clk;
 	input wire rst_n;
-	localparam signed [31:0] top_params_N_CORES = 2;
+	localparam signed [31:0] top_params_N_CORES = 4;
 	genvar _arr_15365;
 	generate
-		for (_arr_15365 = 0; _arr_15365 <= 1; _arr_15365 = _arr_15365 + 1) begin : dec
+		for (_arr_15365 = 0; _arr_15365 <= 3; _arr_15365 = _arr_15365 + 1) begin : dec
 			wire start;
 			wire run;
 			wire icache_load;
-			localparam signed [31:0] top_params_MEM_SIZE = 4;
-			localparam signed [31:0] top_params_ADDR_WIDTH = 2;
+			localparam signed [31:0] top_params_MEM_SIZE = 8;
+			localparam signed [31:0] top_params_ADDR_WIDTH = 3;
 			localparam signed [31:0] top_params_DATA_WIDTH = 1;
-			wire [(32'sd2 + 32'sd1) + 0:0] load_inst;
+			wire [(32'sd3 + 32'sd1) + 0:0] load_inst;
 			wire core_done;
 			localparam signed [31:0] top_params_DCACHE_SIZE = 2;
 			localparam signed [31:0] top_params_IDX_WIDTH = 1;
 			localparam signed [31:0] top_params_TAG_WIDTH = top_params_ADDR_WIDTH - top_params_IDX_WIDTH;
-			wire [(((32'sd2 - 32'sd1) + 3) >= 0 ? (top_params_DCACHE_SIZE * ((32'sd2 - 32'sd1) + 4)) - 1 : (top_params_DCACHE_SIZE * (1 - ((32'sd2 - 32'sd1) + 3))) + ((32'sd2 - 32'sd1) + 2)):(((32'sd2 - 32'sd1) + 3) >= 0 ? 0 : (32'sd2 - 32'sd1) + 3)] lines;
+			wire [(((32'sd3 - 32'sd1) + 3) >= 0 ? (top_params_DCACHE_SIZE * ((32'sd3 - 32'sd1) + 4)) - 1 : (top_params_DCACHE_SIZE * (1 - ((32'sd3 - 32'sd1) + 3))) + ((32'sd3 - 32'sd1) + 2)):(((32'sd3 - 32'sd1) + 3) >= 0 ? 0 : (32'sd3 - 32'sd1) + 3)] lines;
 		end
 		if (1) begin : mem_decoder
 			reg we;
-			localparam signed [31:0] top_params_MEM_SIZE = 4;
-			localparam signed [31:0] top_params_ADDR_WIDTH = 2;
-			reg [1:0] addr;
+			localparam signed [31:0] top_params_MEM_SIZE = 8;
+			localparam signed [31:0] top_params_ADDR_WIDTH = 3;
+			reg [2:0] addr;
 			localparam signed [31:0] top_params_DATA_WIDTH = 1;
 			reg [0:0] din;
 			reg [0:0] dout;
 		end
 		if (1) begin : mem_bus
 			reg we;
-			localparam signed [31:0] top_params_MEM_SIZE = 4;
-			localparam signed [31:0] top_params_ADDR_WIDTH = 2;
-			reg [1:0] addr;
+			localparam signed [31:0] top_params_MEM_SIZE = 8;
+			localparam signed [31:0] top_params_ADDR_WIDTH = 3;
+			reg [2:0] addr;
 			localparam signed [31:0] top_params_DATA_WIDTH = 1;
 			reg [0:0] din;
 			reg [0:0] dout;
@@ -64,7 +64,7 @@ module tt_um_cache_coherence_sim (
 			reg _sv2v_0;
 			wire clk;
 			wire rst_n;
-			localparam signed [31:0] top_params_N_CORES = 2;
+			localparam signed [31:0] top_params_N_CORES = 4;
 			localparam _mbase_dec = 0;
 			wire [7:0] ui_in;
 			wire [7:0] uio_in;
@@ -75,15 +75,15 @@ module tt_um_cache_coherence_sim (
 			reg [1:0] current_state;
 			reg [1:0] next_state;
 			localparam signed [31:0] top_params_DCACHE_SIZE = 2;
-			localparam signed [31:0] top_params_RD_WIDTH = $clog2(32'sd2 * 32'sd2);
+			localparam signed [31:0] top_params_RD_WIDTH = $clog2(32'sd4 * 32'sd2);
 			reg [top_params_RD_WIDTH - 1:0] rd_idx;
 			localparam signed [31:0] top_params_CYCLE_WIDTH = 7;
 			reg [6:0] cycle_count;
-			wire [1:0] core_done_by_core;
+			wire [3:0] core_done_by_core;
 			wire [15:0] mcu_in;
-			localparam signed [31:0] top_params_MEM_SIZE = 4;
-			localparam signed [31:0] top_params_ADDR_WIDTH = 2;
-			localparam signed [31:0] top_params_CORE_SEL_WIDTH = 1;
+			localparam signed [31:0] top_params_MEM_SIZE = 8;
+			localparam signed [31:0] top_params_ADDR_WIDTH = 3;
+			localparam signed [31:0] top_params_CORE_SEL_WIDTH = 2;
 			localparam signed [31:0] top_params_DATA_WIDTH = 1;
 			reg [((top_params_DATA_WIDTH + top_params_ADDR_WIDTH) + top_params_CORE_SEL_WIDTH) + 2:0] cmd_word;
 			reg [(top_params_ADDR_WIDTH + top_params_DATA_WIDTH) + 0:0] load_inst;
@@ -91,7 +91,7 @@ module tt_um_cache_coherence_sim (
 			wire start_cmd;
 			localparam signed [31:0] top_params_IDX_WIDTH = 1;
 			localparam signed [31:0] top_params_TAG_WIDTH = top_params_ADDR_WIDTH - top_params_IDX_WIDTH;
-			wire [(top_params_TAG_WIDTH + top_params_DATA_WIDTH) + 2:0] all_lines [0:1][0:1];
+			wire [(top_params_TAG_WIDTH + top_params_DATA_WIDTH) + 2:0] all_lines [0:3][0:1];
 			assign mcu_in = {uio_in, ui_in};
 			assign start_cmd = ((current_state == 2'b00) && cmd_word[0]) && (cmd_word[2-:2] == 2'b11);
 			assign load_inst_valid = ((current_state == 2'b00) && cmd_word[0]) && ((cmd_word[2-:2] == 2'b00) || (cmd_word[2-:2] == 2'b01));
@@ -100,17 +100,17 @@ module tt_um_cache_coherence_sim (
 				localparam i = _gv_i_1;
 				assign tt_um_cache_coherence_sim.dec[i + _mbase_dec].run = current_state == 2'b01;
 				assign tt_um_cache_coherence_sim.dec[i + _mbase_dec].start = start_cmd;
-				function automatic signed [0:0] sv2v_cast_2566C_signed;
-					input reg signed [0:0] inp;
+				function automatic signed [1:0] sv2v_cast_2566C_signed;
+					input reg signed [1:0] inp;
 					sv2v_cast_2566C_signed = inp;
 				endfunction
-				assign tt_um_cache_coherence_sim.dec[i + _mbase_dec].icache_load = load_inst_valid && (cmd_word[3-:1] == sv2v_cast_2566C_signed(i));
+				assign tt_um_cache_coherence_sim.dec[i + _mbase_dec].icache_load = load_inst_valid && (cmd_word[4-:2] == sv2v_cast_2566C_signed(i));
 				assign tt_um_cache_coherence_sim.dec[i + _mbase_dec].load_inst = load_inst;
 				assign core_done_by_core[i] = tt_um_cache_coherence_sim.dec[i + _mbase_dec].core_done;
 				genvar _gv_j_1;
 				for (_gv_j_1 = 0; _gv_j_1 < top_params_DCACHE_SIZE; _gv_j_1 = _gv_j_1 + 1) begin : gen_readback_lines
 					localparam j = _gv_j_1;
-					assign all_lines[i][j] = tt_um_cache_coherence_sim.dec[i + _mbase_dec].lines[(((32'sd2 - 32'sd1) + 3) >= 0 ? 0 : (32'sd2 - 32'sd1) + 3) + ((1 - j) * (((32'sd2 - 32'sd1) + 3) >= 0 ? (32'sd2 - 32'sd1) + 4 : 1 - ((32'sd2 - 32'sd1) + 3)))+:(((32'sd2 - 32'sd1) + 3) >= 0 ? (32'sd2 - 32'sd1) + 4 : 1 - ((32'sd2 - 32'sd1) + 3))];
+					assign all_lines[i][j] = tt_um_cache_coherence_sim.dec[i + _mbase_dec].lines[(((32'sd3 - 32'sd1) + 3) >= 0 ? 0 : (32'sd3 - 32'sd1) + 3) + ((1 - j) * (((32'sd3 - 32'sd1) + 3) >= 0 ? (32'sd3 - 32'sd1) + 4 : 1 - ((32'sd3 - 32'sd1) + 3)))+:(((32'sd3 - 32'sd1) + 3) >= 0 ? (32'sd3 - 32'sd1) + 4 : 1 - ((32'sd3 - 32'sd1) + 3))];
 				end
 			end
 			always @(*) begin
@@ -154,11 +154,11 @@ module tt_um_cache_coherence_sim (
 					;
 				cmd_word[0] = mcu_in[0];
 				cmd_word[2-:2] = mcu_in[2:1];
-				cmd_word[3-:1] = mcu_in[3+:top_params_CORE_SEL_WIDTH];
-				cmd_word[5-:2] = mcu_in[4+:top_params_ADDR_WIDTH];
-				cmd_word[6-:1] = mcu_in[6+:top_params_DATA_WIDTH];
-				load_inst[3-:2] = cmd_word[5-:2];
-				load_inst[1-:1] = (cmd_word[2-:2] == 2'b01 ? cmd_word[6-:1] : 1'b0);
+				cmd_word[4-:2] = mcu_in[3+:top_params_CORE_SEL_WIDTH];
+				cmd_word[7-:3] = mcu_in[5+:top_params_ADDR_WIDTH];
+				cmd_word[8-:1] = mcu_in[8+:top_params_DATA_WIDTH];
+				load_inst[4-:3] = cmd_word[7-:3];
+				load_inst[1-:1] = (cmd_word[2-:2] == 2'b01 ? cmd_word[8-:1] : 1'b0);
 				load_inst[0] = cmd_word[1];
 				loading = current_state == 2'b00;
 				uo_out = 1'sb0;
@@ -169,8 +169,8 @@ module tt_um_cache_coherence_sim (
 				tt_um_cache_coherence_sim.mem_decoder.din = 1'sb0;
 				if (((current_state == 2'b00) && cmd_word[0]) && (cmd_word[2-:2] == 2'b10)) begin
 					tt_um_cache_coherence_sim.mem_decoder.we = 1'b1;
-					tt_um_cache_coherence_sim.mem_decoder.addr = cmd_word[5-:2];
-					tt_um_cache_coherence_sim.mem_decoder.din = cmd_word[6-:1];
+					tt_um_cache_coherence_sim.mem_decoder.addr = cmd_word[7-:3];
+					tt_um_cache_coherence_sim.mem_decoder.din = cmd_word[8-:1];
 				end
 				if (current_state == 2'b10) begin
 					uo_out[0] = 1'b1;
@@ -192,12 +192,12 @@ module tt_um_cache_coherence_sim (
 	assign uio_oe[7:0] = u_decoder.uio_oe;
 	genvar _arr_3D285;
 	generate
-		for (_arr_3D285 = 0; _arr_3D285 <= 1; _arr_3D285 = _arr_3D285 + 1) begin : bus
+		for (_arr_3D285 = 0; _arr_3D285 <= 3; _arr_3D285 = _arr_3D285 + 1) begin : bus
 			reg req;
 			reg [1:0] req_type;
-			localparam signed [31:0] top_params_MEM_SIZE = 4;
-			localparam signed [31:0] top_params_ADDR_WIDTH = 2;
-			reg [1:0] addr;
+			localparam signed [31:0] top_params_MEM_SIZE = 8;
+			localparam signed [31:0] top_params_ADDR_WIDTH = 3;
+			reg [2:0] addr;
 			localparam signed [31:0] top_params_DATA_WIDTH = 1;
 			reg [0:0] data;
 			reg snoop_hit;
@@ -206,7 +206,7 @@ module tt_um_cache_coherence_sim (
 			wire done;
 			wire snoop_valid;
 			wire [1:0] snoop_type;
-			wire [1:0] snoop_addr;
+			wire [2:0] snoop_addr;
 			wire resp_shared;
 			wire [0:0] resp_data;
 		end
@@ -224,18 +224,18 @@ module tt_um_cache_coherence_sim (
 				localparam _mbase_bus = _bbase_D9579_bus;
 				wire [1:0] protocol;
 				localparam signed [31:0] top_params_ICACHE_SIZE = 4;
-				localparam signed [31:0] top_params_MEM_SIZE = 4;
-				localparam signed [31:0] top_params_ADDR_WIDTH = 2;
+				localparam signed [31:0] top_params_MEM_SIZE = 8;
+				localparam signed [31:0] top_params_ADDR_WIDTH = 3;
 				localparam signed [31:0] top_params_DATA_WIDTH = 1;
-				reg [(32'sd2 + 32'sd1) + 0:0] icache [0:3];
+				reg [(32'sd3 + 32'sd1) + 0:0] icache [0:3];
 				localparam signed [31:0] top_params_PC_WIDTH = 3;
 				reg [2:0] pc;
 				if (1) begin : exec
 					wire local_valid;
-					localparam signed [31:0] top_params_MEM_SIZE = 4;
-					localparam signed [31:0] top_params_ADDR_WIDTH = 2;
+					localparam signed [31:0] top_params_MEM_SIZE = 8;
+					localparam signed [31:0] top_params_ADDR_WIDTH = 3;
 					localparam signed [31:0] top_params_DATA_WIDTH = 1;
-					wire [(32'sd2 + 32'sd1) + 0:0] local_inst;
+					wire [(32'sd3 + 32'sd1) + 0:0] local_inst;
 					reg inst_done;
 				end
 				always @(posedge clk or negedge rst_n)
@@ -268,19 +268,19 @@ module tt_um_cache_coherence_sim (
 					localparam _mbase_bus = _bbase_81B35_bus;
 					localparam signed [31:0] top_params_DCACHE_SIZE = 2;
 					localparam signed [31:0] top_params_DATA_WIDTH = 1;
-					localparam signed [31:0] top_params_MEM_SIZE = 4;
-					localparam signed [31:0] top_params_ADDR_WIDTH = 2;
+					localparam signed [31:0] top_params_MEM_SIZE = 8;
+					localparam signed [31:0] top_params_ADDR_WIDTH = 3;
 					localparam signed [31:0] top_params_IDX_WIDTH = 1;
 					localparam signed [31:0] top_params_TAG_WIDTH = top_params_ADDR_WIDTH - top_params_IDX_WIDTH;
-					reg [(((32'sd2 - 32'sd1) + 3) >= 0 ? (top_params_DCACHE_SIZE * ((32'sd2 - 32'sd1) + 4)) - 1 : (top_params_DCACHE_SIZE * (1 - ((32'sd2 - 32'sd1) + 3))) + ((32'sd2 - 32'sd1) + 2)):(((32'sd2 - 32'sd1) + 3) >= 0 ? 0 : (32'sd2 - 32'sd1) + 3)] lines;
+					reg [(((32'sd3 - 32'sd1) + 3) >= 0 ? (top_params_DCACHE_SIZE * ((32'sd3 - 32'sd1) + 4)) - 1 : (top_params_DCACHE_SIZE * (1 - ((32'sd3 - 32'sd1) + 3))) + ((32'sd3 - 32'sd1) + 2)):(((32'sd3 - 32'sd1) + 3) >= 0 ? 0 : (32'sd3 - 32'sd1) + 3)] lines;
 					wire [1:0] protocol;
-					reg [(32'sd2 - 32'sd1) + 3:0] cache [0:1];
+					reg [(32'sd3 - 32'sd1) + 3:0] cache [0:1];
 					reg [0:0] idx;
 					reg [0:0] snoop_idx;
 					reg [top_params_TAG_WIDTH - 1:0] tag;
 					reg [top_params_TAG_WIDTH - 1:0] snoop_tag;
-					reg [(32'sd2 - 32'sd1) + 3:0] local_line;
-					reg [(32'sd2 - 32'sd1) + 3:0] snoop_line;
+					reg [(32'sd3 - 32'sd1) + 3:0] local_line;
+					reg [(32'sd3 - 32'sd1) + 3:0] snoop_line;
 					reg hit;
 					reg evict;
 					reg snoop_hit;
@@ -290,9 +290,9 @@ module tt_um_cache_coherence_sim (
 						if (_sv2v_0)
 							;
 						snoop_idx = tt_um_cache_coherence_sim.bus[_mbase_bus].snoop_addr[0:0];
-						snoop_tag = tt_um_cache_coherence_sim.bus[_mbase_bus].snoop_addr[1:top_params_IDX_WIDTH];
+						snoop_tag = tt_um_cache_coherence_sim.bus[_mbase_bus].snoop_addr[2:top_params_IDX_WIDTH];
 						snoop_line = cache[snoop_idx];
-						snoop_hit = snoop_line[2] && (snoop_line[(32'sd2 - 32'sd1) + 3-:(((32'sd2 - 32'sd1) + 3) >= 4 ? (32'sd2 - 32'sd1) - 0 : 5 - ((32'sd2 - 32'sd1) + 3))] == snoop_tag);
+						snoop_hit = snoop_line[2] && (snoop_line[(32'sd3 - 32'sd1) + 3-:(((32'sd3 - 32'sd1) + 3) >= 4 ? (32'sd3 - 32'sd1) - 0 : 5 - ((32'sd3 - 32'sd1) + 3))] == snoop_tag);
 						tt_um_cache_coherence_sim.bus[_mbase_bus].snoop_hit = snoop_hit;
 						tt_um_cache_coherence_sim.bus[_mbase_bus].snoop_owner = snoop_hit && snoop_line[1];
 						tt_um_cache_coherence_sim.bus[_mbase_bus].snoop_data = snoop_line[3-:1];
@@ -303,18 +303,18 @@ module tt_um_cache_coherence_sim (
 						e_en = protocol[1] || protocol[0];
 						o_en = protocol[1];
 						idx = tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[2:2];
-						tag = tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[3:3];
+						tag = tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[4:3];
 						local_line = cache[idx];
-						hit = local_line[2] && (local_line[(32'sd2 - 32'sd1) + 3-:(((32'sd2 - 32'sd1) + 3) >= 4 ? (32'sd2 - 32'sd1) - 0 : 5 - ((32'sd2 - 32'sd1) + 3))] == tag);
+						hit = local_line[2] && (local_line[(32'sd3 - 32'sd1) + 3-:(((32'sd3 - 32'sd1) + 3) >= 4 ? (32'sd3 - 32'sd1) - 0 : 5 - ((32'sd3 - 32'sd1) + 3))] == tag);
 						evict = (local_line[2] && local_line[1]) && !hit;
 						tt_um_cache_coherence_sim.bus[_mbase_bus].req = 1'b0;
 						tt_um_cache_coherence_sim.bus[_mbase_bus].req_type = 2'b00;
-						tt_um_cache_coherence_sim.bus[_mbase_bus].addr = tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[3-:2];
+						tt_um_cache_coherence_sim.bus[_mbase_bus].addr = tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[4-:3];
 						tt_um_cache_coherence_sim.bus[_mbase_bus].data = 1'sb0;
 						begin : sv2v_autoblock_3
 							reg signed [31:0] i;
 							for (i = 0; i < top_params_DCACHE_SIZE; i = i + 1)
-								lines[(((32'sd2 - 32'sd1) + 3) >= 0 ? 0 : (32'sd2 - 32'sd1) + 3) + ((1 - i) * (((32'sd2 - 32'sd1) + 3) >= 0 ? (32'sd2 - 32'sd1) + 4 : 1 - ((32'sd2 - 32'sd1) + 3)))+:(((32'sd2 - 32'sd1) + 3) >= 0 ? (32'sd2 - 32'sd1) + 4 : 1 - ((32'sd2 - 32'sd1) + 3))] = cache[i];
+								lines[(((32'sd3 - 32'sd1) + 3) >= 0 ? 0 : (32'sd3 - 32'sd1) + 3) + ((1 - i) * (((32'sd3 - 32'sd1) + 3) >= 0 ? (32'sd3 - 32'sd1) + 4 : 1 - ((32'sd3 - 32'sd1) + 3)))+:(((32'sd3 - 32'sd1) + 3) >= 0 ? (32'sd3 - 32'sd1) + 4 : 1 - ((32'sd3 - 32'sd1) + 3))] = cache[i];
 						end
 						if (tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_valid) begin
 							if (hit) begin
@@ -326,7 +326,7 @@ module tt_um_cache_coherence_sim (
 							else if (evict) begin
 								tt_um_cache_coherence_sim.bus[_mbase_bus].req = 1'b1;
 								tt_um_cache_coherence_sim.bus[_mbase_bus].req_type = 2'b10;
-								tt_um_cache_coherence_sim.bus[_mbase_bus].addr = {local_line[(32'sd2 - 32'sd1) + 3-:(((32'sd2 - 32'sd1) + 3) >= 4 ? (32'sd2 - 32'sd1) - 0 : 5 - ((32'sd2 - 32'sd1) + 3))], idx};
+								tt_um_cache_coherence_sim.bus[_mbase_bus].addr = {local_line[(32'sd3 - 32'sd1) + 3-:(((32'sd3 - 32'sd1) + 3) >= 4 ? (32'sd3 - 32'sd1) - 0 : 5 - ((32'sd3 - 32'sd1) + 3))], idx};
 								tt_um_cache_coherence_sim.bus[_mbase_bus].data = local_line[3-:1];
 							end
 							else if (tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[0]) begin
@@ -393,14 +393,14 @@ module tt_um_cache_coherence_sim (
 									cache[idx][0] <= 1'b0;
 								end
 								else if (!hit && tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[0]) begin
-									cache[idx][(32'sd2 - 32'sd1) + 3-:(((32'sd2 - 32'sd1) + 3) >= 4 ? (32'sd2 - 32'sd1) - 0 : 5 - ((32'sd2 - 32'sd1) + 3))] <= tag;
+									cache[idx][(32'sd3 - 32'sd1) + 3-:(((32'sd3 - 32'sd1) + 3) >= 4 ? (32'sd3 - 32'sd1) - 0 : 5 - ((32'sd3 - 32'sd1) + 3))] <= tag;
 									cache[idx][3-:1] <= tt_um_cache_coherence_sim.genblk1[_gv_i_3].u_core.exec.local_inst[1-:1];
 									cache[idx][2] <= 1'b1;
 									cache[idx][1] <= 1'b1;
 									cache[idx][0] <= 1'b1;
 								end
 								else if (!hit) begin
-									cache[idx][(32'sd2 - 32'sd1) + 3-:(((32'sd2 - 32'sd1) + 3) >= 4 ? (32'sd2 - 32'sd1) - 0 : 5 - ((32'sd2 - 32'sd1) + 3))] <= tag;
+									cache[idx][(32'sd3 - 32'sd1) + 3-:(((32'sd3 - 32'sd1) + 3) >= 4 ? (32'sd3 - 32'sd1) - 0 : 5 - ((32'sd3 - 32'sd1) + 3))] <= tag;
 									cache[idx][3-:1] <= tt_um_cache_coherence_sim.bus[_mbase_bus].resp_data;
 									cache[idx][2] <= 1'b1;
 									cache[idx][1] <= 1'b0;
@@ -426,30 +426,30 @@ module tt_um_cache_coherence_sim (
 			reg _sv2v_0;
 			wire clk;
 			wire rst_n;
-			localparam signed [31:0] top_params_N_CORES = 2;
+			localparam signed [31:0] top_params_N_CORES = 4;
 			localparam _mbase_bus = 0;
 			wire [1:0] protocol;
-			wire [1:0] reqs;
-			wire [1:0] req_type_by_core [0:1];
-			localparam signed [31:0] top_params_MEM_SIZE = 4;
-			localparam signed [31:0] top_params_ADDR_WIDTH = 2;
-			wire [1:0] req_addr_by_core [0:1];
+			wire [3:0] reqs;
+			wire [1:0] req_type_by_core [0:3];
+			localparam signed [31:0] top_params_MEM_SIZE = 8;
+			localparam signed [31:0] top_params_ADDR_WIDTH = 3;
+			wire [2:0] req_addr_by_core [0:3];
 			localparam signed [31:0] top_params_DATA_WIDTH = 1;
-			wire [0:0] req_data_by_core [0:1];
-			wire [1:0] snoop_hit_by_core;
-			wire [1:0] snoop_owner_by_core;
-			wire [0:0] snoop_data_by_core [0:1];
-			reg [1:0] done_by_core;
-			reg [1:0] snoop_valid_by_core;
-			localparam signed [31:0] top_params_CORE_SEL_WIDTH = 1;
-			reg [0:0] grant_idx;
-			reg [0:0] cur;
-			reg [0:0] rr_idx;
+			wire [0:0] req_data_by_core [0:3];
+			wire [3:0] snoop_hit_by_core;
+			wire [3:0] snoop_owner_by_core;
+			wire [0:0] snoop_data_by_core [0:3];
+			reg [3:0] done_by_core;
+			reg [3:0] snoop_valid_by_core;
+			localparam signed [31:0] top_params_CORE_SEL_WIDTH = 2;
+			reg [1:0] grant_idx;
+			reg [1:0] cur;
+			reg [1:0] rr_idx;
 			localparam signed [31:0] top_params_MEM_LATENCY = 2;
 			localparam signed [31:0] top_params_WAIT_WIDTH = 2;
 			reg [1:0] wait_count;
-			reg [0:0] gidx;
-			reg [0:0] last;
+			reg [1:0] gidx;
+			reg [1:0] last;
 			reg busy;
 			reg grant;
 			reg mem_access;
@@ -457,7 +457,7 @@ module tt_um_cache_coherence_sim (
 			reg shared;
 			reg owner;
 			reg o_en;
-			reg [1:0] req_addr;
+			reg [2:0] req_addr;
 			reg [0:0] req_data;
 			reg [1:0] req_type;
 			reg [0:0] owner_data;
@@ -486,10 +486,10 @@ module tt_um_cache_coherence_sim (
 				grant_idx = 1'sb0;
 				begin : sv2v_autoblock_5
 					reg signed [31:0] i;
-					for (i = 1; i >= 0; i = i - 1)
+					for (i = 3; i >= 0; i = i - 1)
 						begin
 							begin : sv2v_autoblock_6
-								reg signed [0:0] sv2v_tmp_cast;
+								reg signed [1:0] sv2v_tmp_cast;
 								sv2v_tmp_cast = ((sv2v_cast_32_signed(last) + 1) + i) % top_params_N_CORES;
 								rr_idx = sv2v_tmp_cast;
 							end
@@ -505,7 +505,7 @@ module tt_um_cache_coherence_sim (
 					reg signed [31:0] i;
 					for (i = 0; i < top_params_N_CORES; i = i + 1)
 						begin : sv2v_autoblock_8
-							reg signed [0:0] sv2v_tmp_cast;
+							reg signed [1:0] sv2v_tmp_cast;
 							sv2v_tmp_cast = i;
 							snoop_valid_by_core[i] = grant && (sv2v_tmp_cast != cur);
 						end
@@ -521,7 +521,7 @@ module tt_um_cache_coherence_sim (
 					reg signed [31:0] i;
 					for (i = 0; i < top_params_N_CORES; i = i + 1)
 						begin : sv2v_autoblock_10
-							reg signed [0:0] sv2v_tmp_cast;
+							reg signed [1:0] sv2v_tmp_cast;
 							sv2v_tmp_cast = i;
 							if (sv2v_tmp_cast != cur) begin
 								shared = shared | snoop_hit_by_core[i];
@@ -538,7 +538,7 @@ module tt_um_cache_coherence_sim (
 					reg signed [31:0] i;
 					for (i = 0; i < top_params_N_CORES; i = i + 1)
 						begin : sv2v_autoblock_12
-							reg signed [0:0] sv2v_tmp_cast;
+							reg signed [1:0] sv2v_tmp_cast;
 							sv2v_tmp_cast = i;
 							if (sv2v_tmp_cast == cur)
 								done_by_core[i] = (grant ? !mem_access : wait_count == 1);
@@ -553,8 +553,8 @@ module tt_um_cache_coherence_sim (
 					wait_count <= 1'sb0;
 					gidx <= 1'sb0;
 					begin : sv2v_autoblock_13
-						reg signed [0:0] sv2v_tmp_cast;
-						sv2v_tmp_cast = 1;
+						reg signed [1:0] sv2v_tmp_cast;
+						sv2v_tmp_cast = 3;
 						last <= sv2v_tmp_cast;
 					end
 				end
@@ -583,8 +583,8 @@ module tt_um_cache_coherence_sim (
 			wire rst_n;
 			wire loading;
 			localparam signed [31:0] top_params_DATA_WIDTH = 1;
-			localparam signed [31:0] top_params_MEM_SIZE = 4;
-			reg [0:0] memory [0:3];
+			localparam signed [31:0] top_params_MEM_SIZE = 8;
+			reg [0:0] memory [0:7];
 			always @(posedge clk or negedge rst_n)
 				if (!rst_n) begin : sv2v_autoblock_15
 					reg signed [31:0] i;
