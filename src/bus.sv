@@ -57,7 +57,7 @@ module bus (
         if (|reqs) begin
             //if any requests, we will grant the next one in a round-robin fashion
             for (int i = 0; i < N_CORES; i++) begin
-                automatic int idx = (last + 1 + i) % N_CORES;
+                automatic int idx = (int'(last) + 1 + i) % N_CORES;
                 if (reqs[idx]) begin
                     grant_idx = CORE_SEL_WIDTH'(idx);
                     break;
