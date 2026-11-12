@@ -10,7 +10,7 @@ package top_params;
     localparam int N_CORES     = 4;  // cores (>= 2)
     localparam int DCACHE_SIZE = 2;  // data cache lines per core, power of two (>= 2)
     localparam int ICACHE_SIZE = 4;  // instructions per core, power of two
-    localparam int MEM_SIZE    = 8;  // words of main memory, power of two
+    localparam int MEM_SIZE    = 4;  // words of main memory, power of two
     localparam int DATA_WIDTH  = 1;  // bits per word
     localparam int MEM_LATENCY = 2;  // extra bus cycles for a memory access (>= 1)
     localparam int CYCLE_WIDTH = 7;  // saturating cycle counter
