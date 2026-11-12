@@ -1,11 +1,3 @@
-`default_nettype none
-`default_nettype none
-`default_nettype none
-`default_nettype none
-`default_nettype none
-`default_nettype none
-`default_nettype none
-`default_nettype none
 module tt_um_cache_coherence_sim (
 	ui_in,
 	uo_out,

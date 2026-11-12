@@ -19,10 +19,16 @@ SV_SOURCES := \
 
 .PHONY: sv2v sv2v-check
 
+# The `default_nettype none lines sv2v copies from the sources are stripped:
+# with them, Yosys >= 0.6x (used by LibreLane) rejects sv2v's hierarchical
+# references into the interface arrays ("Identifier is implicitly declared").
+# The .sv sources keep `default_nettype none, so implicit nets are still caught.
+SV2V := sv2v --top $(TOP) $(SV_SOURCES) | grep -v '^`default_nettype none$$'
+
 sv2v:
-	sv2v --top $(TOP) $(SV_SOURCES) > src/project.v.tmp
+	$(SV2V) > src/project.v.tmp
 	mv src/project.v.tmp src/project.v
 
 sv2v-check:
-	sv2v --top $(TOP) $(SV_SOURCES) | diff -u src/project.v - \
+	$(SV2V) | diff -u src/project.v - \
 		|| { echo "src/project.v is out of date: run 'make sv2v' and commit it"; exit 1; }
