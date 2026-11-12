@@ -6,6 +6,14 @@ SIM ?= verilator
 FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
+# RTL sources. The gds flow builds from src/project.v, which sv2v generates from
+# the .sv files (run `make sv2v` in the repo root). Tests run on the .sv files by
+# default; `make SV2V=1` runs the same tests on the generated project.v.
+ifeq ($(SV2V),1)
+PROJECT_SOURCES += project.v
+# generated code trips Verilator style warnings (widths, shadowed names)
+COMPILE_ARGS    += -Wno-fatal
+else
 PROJECT_SOURCES += top_params.sv
 PROJECT_SOURCES += interfaces.sv
 PROJECT_SOURCES += bus.sv
@@ -14,6 +22,7 @@ PROJECT_SOURCES += cache_ctrl.sv
 PROJECT_SOURCES += core.sv
 PROJECT_SOURCES += main_mem.sv
 PROJECT_SOURCES += tt_um_cache_coherence_sim.sv
+endif
 
 ifneq ($(GATES),yes)
 

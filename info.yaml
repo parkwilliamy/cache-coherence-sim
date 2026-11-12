@@ -15,16 +15,11 @@ project:
 
   # List your project's source files here.
   # Source files must be in ./src and you must list each source file separately, one per line.
-  # Don't forget to also update `PROJECT_SOURCES` in test/Makefile.
+  # project.v is generated from the .sv files in ./src by sv2v, because the Tiny Tapeout
+  # flow's Yosys cannot parse the interfaces and package imports. Do not edit it by hand:
+  # change the .sv files and run `make sv2v` in the repo root.
   source_files:
-    - "top_params.sv"
-    - "interfaces.sv"
-    - "cache_ctrl.sv"
-    - "decoder.sv"
-    - "core.sv"
-    - "main_mem.sv"
-    - "bus.sv"
-    - "tt_um_cache_coherence_sim.sv"
+    - "project.v"
 
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.

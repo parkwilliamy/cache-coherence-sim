@@ -22,12 +22,26 @@ jobs:
         shell: bash
         run: pip install -r test/requirements.txt
 
+      # The gds flow builds from src/project.v, which sv2v generates from the .sv
+      # sources. Fail if it was not regenerated after an RTL change.
+      - name: Check src/project.v is up to date
+        shell: bash
+        run: |
+          curl -sSL -o /tmp/sv2v.zip https://github.com/zachjs/sv2v/releases/download/v0.0.13/sv2v-Linux.zip
+          unzip -q /tmp/sv2v.zip -d /tmp
+          export PATH="/tmp/sv2v-Linux:$PATH"
+          make sv2v-check
+
       - name: Run tests
         run: |
           cd test
           make clean
           make
           # make will return success even if the test fails, so check for failed tests in results.xml.
+          ! grep -E '<(failure|error)' results.xml
+          # same tests on the generated Verilog the chip is built from
+          make clean
+          make SV2V=1
           ! grep -E '<(failure|error)' results.xml
 
       - name: Test Summary

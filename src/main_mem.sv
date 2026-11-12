@@ -19,16 +19,19 @@ module main_mem (
         if (!rst_n) begin
             for (int i = 0; i < MEM_SIZE; i++) begin
                 memory[i] <= '0;
+                mem_bus.dout <= '0;
+                mem_decoder.dout <= '0;
             end
         end else begin
+            if (loading && mem_decoder.we) begin // Decoder initialization of main memory
+                memory[mem_decoder.addr] <= mem_decoder.din;
+                mem_decoder.dout <= '0;
+            end else begin                        // Bus reading/writing main memory
+                if (mem_bus.we) memory[mem_bus.addr] <= mem_bus.din;
+                mem_bus.dout <= memory[mem_bus.addr];
+            end
         end
-        if (loading && mem_decoder.we) begin // Decoder initialization of main memory
-            memory[mem_decoder.addr] <= mem_decoder.din;
-            mem_decoder.dout <= '0;
-        end else begin                        // Bus reading/writing main memory
-            if (mem_bus.we) memory[mem_bus.addr] <= mem_bus.din;
-            mem_bus.dout <= memory[mem_bus.addr];
-        end
+        
     end
 
 endmodule

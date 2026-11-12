@@ -20,7 +20,7 @@ module bus (
     logic [N_CORES-1:0] snoop_hit_by_core, snoop_owner_by_core;
     logic [DATA_WIDTH-1:0] snoop_data_by_core [N_CORES];
     logic [N_CORES-1:0] done_by_core, snoop_valid_by_core;
-    logic [CORE_SEL_WIDTH-1:0] grant_idx, cur;
+    logic [CORE_SEL_WIDTH-1:0] grant_idx, cur, rr_idx;
     logic [WAIT_WIDTH-1:0] wait_count;
     logic [CORE_SEL_WIDTH-1:0] gidx, last;
     logic busy, grant, mem_access, served_by_owner, shared, owner, o_en;
@@ -54,17 +54,14 @@ module bus (
         grant = !busy && (|reqs);
         //if we are not busy and there is a request, we can grant it
         grant_idx = '0;
-        if (|reqs) begin
-            //if any requests, we will grant the next one in a round-robin fashion
-            for (int i = 0; i < N_CORES; i++) begin
-                automatic int idx = (int'(last) + 1 + i) % N_CORES;
-                if (reqs[idx]) begin
-                    grant_idx = CORE_SEL_WIDTH'(idx);
-                    break;
-                end
-                //loops through requests after last given request, and grants the first one it finds
+        //round-robin: scan from the farthest core after last down to the nearest, so the
+        //nearest requester is assigned last and wins. Written without break and with the
+        //cast outside the if, because sv2v turns both into latches in the generated Verilog.
+        for (int i = N_CORES - 1; i >= 0; i--) begin
+            rr_idx = CORE_SEL_WIDTH'((int'(last) + 1 + i) % N_CORES);
+            if (reqs[rr_idx]) begin
+                grant_idx = rr_idx;
             end
-            //
         end
 
         cur = busy ? gidx : grant_idx;
@@ -73,11 +70,8 @@ module bus (
         req_addr = req_addr_by_core[cur];
         req_data = req_data_by_core[cur];
 
-        snoop_valid_by_core = '0;
-        if (grant) begin
-            for (int i = 0; i < N_CORES; i++) begin
-                snoop_valid_by_core[i] = (CORE_SEL_WIDTH'(i) != cur);
-            end
+        for (int i = 0; i < N_CORES; i++) begin
+            snoop_valid_by_core[i] = grant && (CORE_SEL_WIDTH'(i) != cur);
         end
     end
 
