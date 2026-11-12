@@ -19,11 +19,14 @@ SV_SOURCES := \
 
 .PHONY: sv2v sv2v-check
 
-# The `default_nettype none lines sv2v copies from the sources are stripped:
-# with them, Yosys >= 0.6x (used by LibreLane) rejects sv2v's hierarchical
-# references into the interface arrays ("Identifier is implicitly declared").
-# The .sv sources keep `default_nettype none, so implicit nets are still caught.
-SV2V := sv2v --top $(TOP) $(SV_SOURCES) | grep -v '^`default_nettype none$$'
+# The `default_nettype none lines sv2v copies from the sources are replaced by a
+# single `default_nettype wire. LibreLane reads the file with Yosys >= 0.6x and
+# -noautowire, and under default_nettype none that Yosys rejects sv2v's
+# hierarchical references into the interface arrays ("Identifier is implicitly
+# declared"). The .sv sources keep `default_nettype none, so implicit nets are
+# still caught there.
+SV2V := { echo '`default_nettype wire'; \
+	sv2v --top $(TOP) $(SV_SOURCES) | grep -v '^`default_nettype none$$'; }
 
 sv2v:
 	$(SV2V) > src/project.v.tmp

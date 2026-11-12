@@ -1,3 +1,4 @@
+`default_nettype wire
 module tt_um_cache_coherence_sim (
 	ui_in,
 	uo_out,
