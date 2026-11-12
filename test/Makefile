@@ -2,9 +2,13 @@
 # See https://docs.cocotb.org/en/stable/quickstart.html for more info
 
 # defaults
-# The gate-level test (GATES=yes) runs in the Tiny Tapeout gl_test action, which
-# only installs Icarus Verilog. RTL tests need Verilator for the SystemVerilog sources.
+# RTL tests need Verilator for the SystemVerilog sources. The gate-level test
+# (GATES=yes) runs in the Tiny Tapeout gl_test action, which only installs Icarus
+# Verilog and also runs a plain `make clean` there, so fall back to Icarus
+# whenever Verilator is not installed.
 ifeq ($(GATES),yes)
+SIM ?= icarus
+else ifeq ($(shell command -v verilator),)
 SIM ?= icarus
 endif
 SIM ?= verilator
