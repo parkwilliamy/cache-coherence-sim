@@ -1,21 +1,13 @@
 import cocotb
-from cocotb.triggers import Timer
 
-
-async def settle():
-    await Timer(1, unit="ns")
-
-
-async def tick(dut):
-    dut.clk.value = 1
-    await Timer(1, unit="ns")
-    dut.clk.value = 0
-    await Timer(1, unit="ns")
+import coverage as cov  # test/coverage.py
+from tb_utils import settle, tick
 
 
 @cocotb.test()
 async def bus_arbitrates_and_applies_memory_latency(dut):
     dut = dut.bus_tb
+    monitor = cov.unit_monitor(cov.BusUnitMonitor, dut)
     dut.clk.value = 0
     dut.rst_n.value = 0
     dut.req.value = 0
@@ -27,7 +19,7 @@ async def bus_arbitrates_and_applies_memory_latency(dut):
     dut.snoop_data.value = 0
     dut.protocol.value = 0
     await settle()
-    await tick(dut)
+    await tick(dut, monitor)
     dut.rst_n.value = 1
     await settle()
 
@@ -38,10 +30,10 @@ async def bus_arbitrates_and_applies_memory_latency(dut):
     assert int(dut.done.value) == 0
     assert int(dut.snoop_valid.value) == 0b1110
     assert int(dut.snoop_addr.value) == 2
-    await tick(dut)
-    await tick(dut)
+    await tick(dut, monitor)
+    await tick(dut, monitor)
     assert int(dut.done.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
 
     dut.req.value = 0
     await settle()

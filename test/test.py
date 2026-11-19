@@ -104,7 +104,6 @@ async def test_coverage_smoke(dut):
 
     if monitor is None:  # gate-level or sv2v build: the run above is the test
         return
-    cov.report_coverage(cocotb.log.info)
     assert not monitor.model.unexpected_arcs, monitor.model.unexpected_arcs
 
     def fully_covered(item):
@@ -113,7 +112,7 @@ async def test_coverage_smoke(dut):
     for item in ("decoder.command_type", "core.req_type", "system.cores_granted",
                  "cache_ctrl.req_hit_cross"):
         assert fully_covered(item), f"{item}: {coverage_db[item].detailed_coverage}"
-    assert coverage_db["cache_ctrl.protocol"].detailed_coverage["MESI"] == 1
+    assert coverage_db["cache_ctrl.protocol"].detailed_coverage["MESI"] >= 1
     assert coverage_db["system.program_cross"].coverage == len(SMOKE_PROGRAMS)
     # The assertions the run is bound to exercise were evaluated and held.
     for item in ("decoder.decoder_start_pulse", "bus.snoop_valid_when_grant",

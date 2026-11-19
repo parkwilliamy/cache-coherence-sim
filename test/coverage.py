@@ -5,25 +5,36 @@ tagged with its section ID from that sheet. The file has three layers:
 
 1. Coverage definitions and their sampling functions (cocotb-coverage). An item
    only counts when its sampling function is called.
-2. CoverageModel: plain Python. Takes one Snapshot of the design per clock and
-   decides what to sample and which assertions to evaluate. No simulator needed,
-   so it can be unit-tested (test_coverage_unit.py).
-3. CoverageMonitor: the cocotb side. Reads the full-chip RTL hierarchy at every
-   falling clock edge, builds the Snapshot and fails the test when an assertion
-   is violated.
+2. Models: plain Python, one per module (DecoderModel, BusModel, CoreModel,
+   CacheCtrlModel) plus CoverageModel, which runs all of them on the full chip
+   and adds the system-level items. A model is stepped once per clock with the
+   signals of that cycle and decides what to sample and which assertions to
+   evaluate. No simulator needed, so they are unit-tested (test_coverage_unit.py).
+3. Monitors: the cocotb side. They read the design, step a model and fail the
+   test when an assertion is violated.
+   - CoverageMonitor: the full chip (tb.dut), sampled at every falling clock edge.
+   - DecoderUnitMonitor, BusUnitMonitor, CoreUnitMonitor, CacheCtrlUnitMonitor:
+     the module testbenches (tb.decoder_tb, ...). Those tests drive the clock by
+     hand, so they are sampled explicitly, by tb_utils.tick(), just before each
+     rising edge.
+
+Every monitor samples into the same coverage database, so module-level and
+full-chip hits count towards the same bins.
 
 Usage, in a test on the full chip (tb.dut):
 
     monitor = coverage.start_coverage(dut)   # None on gate-level / sv2v builds
-    ...
-    coverage.report_coverage(cocotb.log.info)
 
-Not implemented here:
-- 1.2, 2.1, 2.3, 3.2, 3.3 ("valid" checks): deferred, the default simulator is
-  2-state so "not X" cannot be observed.
-- 1.4 (decoder states and transitions): evaluated with Verilator code coverage,
-  `make CODE_COVERAGE=1` (see Makefile). The unreachable `default` arm of the
-  next-state case is waived.
+In a module-level test:
+
+    monitor = coverage.unit_monitor(coverage.BusUnitMonitor, dut.bus_tb)
+    ...
+    await tick(dut, monitor)                 # tb_utils.tick
+
+test_coverage_report.py, the last test module, logs the result:
+
+    coverage.report_coverage(cocotb.log.info)
+    
 """
 
 import os
@@ -246,9 +257,13 @@ SystemGrantCoverage = coverage_section(                                         
 
 
 @CoreCoverage
+def sample_core_req_type(req_type):
+    """Once per bus transaction of a core, in the cycle it completes (done)."""
+
+
 @SystemGrantCoverage
-def sample_grant(core, req_type):
-    """One granted bus transaction."""
+def sample_core_granted(core):
+    """Once per bus transaction, in the cycle the bus grants it."""
 
 
 @_assertion("core.req_valid_until_done")                                        # 3.1
@@ -266,7 +281,8 @@ ProtocolCoverage = coverage_section(                                            
 
 @ProtocolCoverage
 def sample_protocol(protocol):
-    """Once per run."""
+    """Full chip: once per run. cache_ctrl testbench (no run there): once per
+    instruction, with the protocol it is examined under."""
 
 
 CacheControllerCoverage = coverage_section(                                     # 4.2
@@ -386,123 +402,199 @@ class Snapshot:
     programs: Optional[Tuple[Tuple[int, ...], ...]] = None   # icaches; first RUN cycle only
 
 
-class CoverageModel:
-    """Samples coverage and evaluates the assertions from a stream of Snapshots."""
+class Findings:
+    """What the models report besides coverage. One instance is shared by the
+    models of a monitor."""
 
     def __init__(self, log=None):
-        self._log = log
+        self.log = log
         self.failures = []          # assertion violations, as messages
         self.unexpected_arcs = []   # (core, prev, curr, cause) not in TRANSITION_ARCS
-        self.reset()
 
-    def reset(self):
-        """Forget everything that spans cycles. Call while the design is in reset."""
-        self._prev = None
-        self._instr = [None] * N_CORES   # per core: (idx, state at start, cause)
-        self._pending_arcs = []          # (core, idx, state before, cause), resolved next cycle
-        self._checked_lines = None
-
-    def _assert(self, recorder, section, ok, exercised, detail):
+    def check(self, recorder, section, ok, exercised, detail):
+        """Record one evaluation of an assertion; detail() is only called on failure."""
         recorder(bool(ok), bool(exercised))
         if not ok:
             self.failures.append(f"{section} {REQUIREMENTS[section][0]}: {detail()}")
 
-    def _record_arc(self, core, prev, curr, cause):
-        if cause in TRANSITION_ARCS.get((prev, curr), ()):
-            sample_transition(prev, curr, cause)
-            return
-        self.unexpected_arcs.append((core, prev, curr, cause))
-        if self._log is not None:
-            self._log.warning(
-                "core %d: transition %s->%s by %s is not in TRANSITION_ARCS",
-                core, STATE_NAMES.get(prev, bin(prev)), STATE_NAMES.get(curr, bin(curr)), cause)
 
-    def step(self, s):
-        p = self._prev
+class DecoderModel:
+    """1.1 and 1.3."""
 
-        # ---- Decoder ----
-        cmd_valid = s.state == LOAD and bool(s.ui_in & 1)
-        cmd = (s.ui_in >> 1) & 0b11
+    def __init__(self, findings=None):
+        self.findings = findings or Findings()
+        self.reset()
+
+    def reset(self):
+        self._prev_start = 0
+
+    def step(self, state, ui_in, start):
+        cmd_valid = state == LOAD and bool(ui_in & 1)
+        cmd = (ui_in >> 1) & 0b11
         if cmd_valid:
             sample_decoder_command(cmd)                                          # 1.3
         start_expected = cmd_valid and cmd == CMD_START
-        prev_start = p.start if p else 0
-        self._assert(assert_decoder_start_pulse, "1.1",
-                     start_pulse_ok(s.start, start_expected, prev_start), start_expected,
-                     lambda: f"start={s.start:0{N_CORES}b}, CMD_START on pins={start_expected}, "
-                             f"start in previous cycle={prev_start:0{N_CORES}b}")
+        prev_start = self._prev_start
+        self.findings.check(
+            assert_decoder_start_pulse, "1.1",
+            start_pulse_ok(start, start_expected, prev_start), start_expected,
+            lambda: f"start={start:0{N_CORES}b}, CMD_START on pins={start_expected}, "
+                    f"start in previous cycle={prev_start:0{N_CORES}b}")
+        self._prev_start = start
 
-        if p is not None and p.state == LOAD and s.state == RUN:                 # run begins
+
+class BusModel:
+    """2.2, 2.4 and 5.3."""
+
+    def __init__(self, findings=None):
+        self.findings = findings or Findings()
+
+    def reset(self):
+        pass
+
+    def step(self, grant, grant_idx, done, snoop_valid):
+        self.findings.check(
+            assert_snoop_valid_when_grant, "2.2",
+            snoop_valid_ok(snoop_valid, grant, grant_idx), grant,
+            lambda: f"snoop_valid={snoop_valid:0{N_CORES}b}, grant={grant}, "
+                    f"granted core={grant_idx}")
+        self.findings.check(
+            assert_only_one_done_valid, "2.4", done_onehot_ok(done), done,
+            lambda: f"done={done:0{N_CORES}b}")
+        if grant:
+            sample_core_granted(grant_idx)                                       # 5.3
+
+
+class CoreModel:
+    """3.1 and 3.4, for the bus requests of one core."""
+
+    def __init__(self, findings=None, core=0):
+        self.findings = findings or Findings()
+        self.core = core
+        self.reset()
+
+    def reset(self):
+        self._prev_req = self._prev_done = 0
+
+    def step(self, req, done, req_type):
+        if self._prev_req:
+            self.findings.check(
+                assert_req_valid_until_done, "3.1",
+                req_held_ok(1, self._prev_done, req), self._prev_done,
+                lambda: f"core {self.core} dropped req before done")
+        if req and done:
+            sample_core_req_type(req_type)                                       # 3.4
+        self._prev_req, self._prev_done = req, done
+
+
+class CacheCtrlModel:
+    """4.2 and 4.3 - 4.23 for one cache; also 4.1 when step() is given the protocol."""
+
+    def __init__(self, findings=None, core=0):
+        self.findings = findings or Findings()
+        self.core = core
+        self.reset()
+
+    def reset(self):
+        self._instr = None    # instruction in flight: (idx, state at start, cause)
+        self._pending = []    # arcs armed last cycle: (idx, state before, cause)
+
+    def _record_arc(self, prev, curr, cause):
+        if cause in TRANSITION_ARCS.get((prev, curr), ()):
+            sample_transition(prev, curr, cause)
+            return
+        self.findings.unexpected_arcs.append((self.core, prev, curr, cause))
+        if self.findings.log is not None:
+            self.findings.log.warning(
+                "core %d: transition %s->%s by %s is not in TRANSITION_ARCS", self.core,
+                STATE_NAMES.get(prev, bin(prev)), STATE_NAMES.get(curr, bin(curr)), cause)
+
+    def step(self, local_valid, local_inst, inst_done, snooped, snoop_type, snoop_addr, lines,
+             protocol=None):
+        """lines: the lines of this cache. snooped: this cache snoops this cycle."""
+        # Arcs armed in the previous cycle took effect at the clock edge in between.
+        for idx, before, cause in self._pending:
+            self._record_arc(before, line_state(lines[idx]), cause)
+        self._pending = []
+
+        if snooped:
+            idx, tag = split_addr(snoop_addr)
+            line = lines[idx]
+            if line_hit(line, tag) and snoop_type in SNOOP_CAUSES:
+                self._pending.append((idx, line_state(line), SNOOP_CAUSES[snoop_type]))
+        # A snooped cache does not examine its instruction in that cycle.
+        if local_valid and not snooped:
+            if self._instr is None:
+                addr, _, op = decode_inst(local_inst)
+                idx, tag = split_addr(addr)
+                line = lines[idx]
+                hit = line_hit(line, tag)
+                sample_cache_request("write" if op else "read", "hit" if hit else "miss")  # 4.2
+                if protocol is not None:
+                    sample_protocol(protocol)                                    # 4.1
+                cause = ("write" if op else "read") + ("_hit" if hit else "_miss")
+                self._instr = (idx, line_state(line), cause)
+            if inst_done:
+                self._pending.append(self._instr)
+                self._instr = None
+
+
+class CoverageModel:
+    """The full chip: every module model, plus the system-level items (4.1 per run,
+    5.1, 5.2, 5.4, 5.5, 5.6). Stepped with one Snapshot per clock."""
+
+    def __init__(self, log=None):
+        self.findings = Findings(log)
+        self.failures = self.findings.failures
+        self.unexpected_arcs = self.findings.unexpected_arcs
+        self.decoder = DecoderModel(self.findings)
+        self.bus = BusModel(self.findings)
+        self.cores = [CoreModel(self.findings, core) for core in range(N_CORES)]
+        self.caches = [CacheCtrlModel(self.findings, core) for core in range(N_CORES)]
+        self.reset()
+
+    def reset(self):
+        """Forget everything that spans cycles. Call while the design is in reset."""
+        for model in (self.decoder, self.bus, *self.cores, *self.caches):
+            model.reset()
+        self._prev_state = None
+        self._checked_lines = None
+
+    def step(self, s):
+        self.decoder.step(s.state, s.ui_in, s.start)
+
+        if self._prev_state == LOAD and s.state == RUN:                          # run begins
             sample_protocol((s.ui_in >> PROTOCOL_LSB) & 0b11)                    # 4.1
             for program in s.programs or ():
                 sample_program(tuple(program))                                   # 5.4
 
-        # ---- Bus ----
-        self._assert(assert_snoop_valid_when_grant, "2.2",
-                     snoop_valid_ok(s.snoop_valid, s.grant, s.grant_idx), s.grant,
-                     lambda: f"snoop_valid={s.snoop_valid:0{N_CORES}b}, grant={s.grant}, "
-                             f"granted core={s.grant_idx}")
-        self._assert(assert_only_one_done_valid, "2.4",
-                     done_onehot_ok(s.done), s.done,
-                     lambda: f"done={s.done:0{N_CORES}b}")
-        if s.grant:
-            sample_grant(s.grant_idx, s.bus_type)                                # 3.4, 5.3
-
-        # ---- Core ----
-        if p is not None and p.req:
-            for core in range(N_CORES):
-                if (p.req >> core) & 1:
-                    p_done, req = (p.done >> core) & 1, (s.req >> core) & 1
-                    self._assert(assert_req_valid_until_done, "3.1",
-                                 req_held_ok(1, p_done, req), p_done,
-                                 lambda: f"core {core} dropped req before done")
-
-        # ---- Cache controller ----
-        # Arcs armed in the previous cycle took effect at the clock edge in between.
-        for core, idx, before, cause in self._pending_arcs:
-            self._record_arc(core, before, line_state(s.lines[core][idx]), cause)
-        self._pending_arcs = []
+        self.bus.step(s.grant, s.grant_idx, s.done, s.snoop_valid)
 
         for core in range(N_CORES):
-            snooped = (s.snoop_valid >> core) & 1
-            if snooped:
-                idx, tag = split_addr(s.bus_addr)
-                line = s.lines[core][idx]
-                if line_hit(line, tag) and s.bus_type in SNOOP_CAUSES:
-                    self._pending_arcs.append(
-                        (core, idx, line_state(line), SNOOP_CAUSES[s.bus_type]))
-            # A snooped core does not examine its instruction in that cycle.
-            if (s.local_valid >> core) & 1 and not snooped:
-                if self._instr[core] is None:
-                    addr, _, op = decode_inst(s.local_inst[core])
-                    idx, tag = split_addr(addr)
-                    line = s.lines[core][idx]
-                    hit = line_hit(line, tag)
-                    sample_cache_request("write" if op else "read", "hit" if hit else "miss")  # 4.2
-                    cause = ("write" if op else "read") + ("_hit" if hit else "_miss")
-                    self._instr[core] = (idx, line_state(line), cause)
-                if (s.inst_done >> core) & 1:
-                    idx, before, cause = self._instr[core]
-                    self._pending_arcs.append((core, idx, before, cause))
-                    self._instr[core] = None
+            # bus_type is the request of the core being served, so it is this
+            # core's req_type whenever its done is set.
+            self.cores[core].step((s.req >> core) & 1, (s.done >> core) & 1, s.bus_type)
+            self.caches[core].step(
+                (s.local_valid >> core) & 1, s.local_inst[core], (s.inst_done >> core) & 1,
+                (s.snoop_valid >> core) & 1, s.bus_type, s.bus_addr, s.lines[core])
 
-        # ---- System ----
         if s.lines != self._checked_lines:
             self._checked_lines = s.lines
             max_e, max_o, max_m, m_shared = line_invariants(s.lines)
-            self._assert(assert_one_cache_holds_exclusive, "5.1", max_e <= 1, max_e == 1,
-                         lambda: f"{max_e} cores hold the same line in E, lines={s.lines}")
-            self._assert(assert_one_cache_holds_owner, "5.2", max_o <= 1, max_o == 1,
-                         lambda: f"{max_o} cores hold the same line in O, lines={s.lines}")
-            self._assert(assert_one_cache_holds_modified, "5.5", max_m <= 1, max_m == 1,
-                         lambda: f"{max_m} cores hold the same line in M, lines={s.lines}")
-            self._assert(assert_modified_excludes_other_copies, "5.6", not m_shared, max_m >= 1,
-                         lambda: f"a line in M has another valid copy, lines={s.lines}")
+            check = self.findings.check
+            check(assert_one_cache_holds_exclusive, "5.1", max_e <= 1, max_e == 1,
+                  lambda: f"{max_e} cores hold the same line in E, lines={s.lines}")
+            check(assert_one_cache_holds_owner, "5.2", max_o <= 1, max_o == 1,
+                  lambda: f"{max_o} cores hold the same line in O, lines={s.lines}")
+            check(assert_one_cache_holds_modified, "5.5", max_m <= 1, max_m == 1,
+                  lambda: f"{max_m} cores hold the same line in M, lines={s.lines}")
+            check(assert_modified_excludes_other_copies, "5.6", not m_shared, max_m >= 1,
+                  lambda: f"a line in M has another valid copy, lines={s.lines}")
 
-        self._prev = s
+        self._prev_state = s.state
 
 
-# ---- cocotb monitor ----
+# ---- cocotb monitor: full chip ----
 class CoverageMonitor:
     """Feeds a CoverageModel from the full-chip RTL, one Snapshot per falling clock
     edge. Stimulus must change the inputs on rising edges, so that what is sampled
@@ -617,6 +709,107 @@ class CoverageMonitor:
                     f"assertion failed at {get_sim_time('ns')} ns: " + "; ".join(self.model.failures))
 
 
+# ---- cocotb monitors: module testbenches ----
+class UnitMonitor:
+    """Base of the monitors for the module testbenches (test/*_tb.sv).
+
+    Those tests drive the clock by hand and set the inputs while it is low, so
+    there is no edge at which a background task could sample. Instead sample()
+    is called once per clock cycle, after the inputs have settled and before the
+    rising edge: tb_utils.tick() does that. A violated assertion raises there.
+    """
+
+    def __init__(self, tb):
+        self._rst_n = tb.rst_n
+        self.findings = Findings(log=cocotb.log)
+        self.model = None   # set by the subclass
+
+    def _step(self):
+        raise NotImplementedError
+
+    def sample(self):
+        if not int(self._rst_n.value):
+            self.model.reset()
+            return
+        self._step()
+        if self.findings.failures:
+            raise AssertionError(
+                f"assertion failed at {get_sim_time('ns')} ns: " + "; ".join(self.findings.failures))
+
+
+class DecoderUnitMonitor(UnitMonitor):
+    """decoder_tb: 1.1, 1.3."""
+
+    def __init__(self, tb):
+        super().__init__(tb)
+        self._state = tb.dut.current_state
+        self._ui_in = tb.ui_in
+        self._start = tb.dec_start
+        self.model = DecoderModel(self.findings)
+
+    def _step(self):
+        self.model.step(int(self._state.value), int(self._ui_in.value), int(self._start.value))
+
+
+class BusUnitMonitor(UnitMonitor):
+    """bus_tb: 2.2, 2.4, 5.3."""
+
+    def __init__(self, tb):
+        super().__init__(tb)
+        self._grant = tb.dut.grant
+        self._grant_idx = tb.dut.grant_idx
+        self._done = tb.done
+        self._snoop_valid = tb.snoop_valid
+        self.model = BusModel(self.findings)
+
+    def _step(self):
+        self.model.step(int(self._grant.value), int(self._grant_idx.value),
+                        int(self._done.value), int(self._snoop_valid.value))
+
+
+class CoreUnitMonitor(UnitMonitor):
+    """core_tb: 3.1, 3.4."""
+
+    def __init__(self, tb):
+        super().__init__(tb)
+        self._req = tb.bus_req
+        self._done = tb.bus_done
+        self._req_type = tb.bus_req_type
+        self.model = CoreModel(self.findings)
+
+    def _step(self):
+        self.model.step(int(self._req.value), int(self._done.value), int(self._req_type.value))
+
+
+class CacheCtrlUnitMonitor(UnitMonitor):
+    """cache_ctrl_tb: 4.1 (per instruction), 4.2, 4.3 - 4.23.
+
+    The testbench can drive what the system never does (for example change the
+    protocol mid-run), so arcs outside TRANSITION_ARCS are possible here. They
+    are logged and collected in findings.unexpected_arcs, not failed.
+    """
+
+    def __init__(self, tb):
+        super().__init__(tb)
+        self._local_valid = tb.local_valid
+        self._local = (tb.local_addr, tb.local_data, tb.local_op)
+        self._inst_done = tb.inst_done
+        self._snoop_valid = tb.bus_snoop_valid
+        self._snoop_type = tb.bus_snoop_type
+        self._snoop_addr = tb.bus_snoop_addr
+        self._lines = [getattr(tb, f"line{k}") for k in range(DCACHE_SIZE)]
+        self._protocol = tb.protocol
+        self.model = CacheCtrlModel(self.findings)
+
+    def _step(self):
+        addr, data, op = (int(handle.value) for handle in self._local)
+        self.model.step(
+            int(self._local_valid.value), (addr << (DATA_WIDTH + 1)) | (data << 1) | op,
+            int(self._inst_done.value), int(self._snoop_valid.value),
+            int(self._snoop_type.value), int(self._snoop_addr.value),
+            tuple(int(line.value) for line in self._lines), int(self._protocol.value))
+
+
 def coverage_supported():
     """The monitor needs the hierarchy of the SystemVerilog sources. The gate-level
     netlist and the sv2v-generated project.v do not have it."""
@@ -630,6 +823,12 @@ def start_coverage(tb):
         cocotb.log.info("functional coverage is not collected on gate-level or sv2v builds")
         return None
     return CoverageMonitor(tb).start()
+
+
+def unit_monitor(monitor_class, tb):
+    """Monitor for a module testbench, e.g. unit_monitor(BusUnitMonitor, dut.bus_tb).
+    Returns None on builds where coverage cannot run; tb_utils.tick() accepts that."""
+    return monitor_class(tb) if coverage_supported() else None
 
 
 # ---- Reporting ----

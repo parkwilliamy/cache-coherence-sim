@@ -1,16 +1,6 @@
 import cocotb
-from cocotb.triggers import Timer
 
-
-async def settle():
-    await Timer(1, unit="ns")
-
-
-async def tick(dut):
-    dut.clk.value = 1
-    await Timer(1, unit="ns")
-    dut.clk.value = 0
-    await Timer(1, unit="ns")
+from tb_utils import settle, tick
 
 
 @cocotb.test()

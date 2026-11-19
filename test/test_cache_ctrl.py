@@ -1,5 +1,7 @@
 import cocotb
-from cocotb.triggers import Timer
+
+import coverage as cov  # test/coverage.py
+from tb_utils import settle, tick
 
 
 RD = 0
@@ -12,17 +14,6 @@ MOESI = 2
 
 def line(tag, data, valid, dirty, exclusive):
     return (tag << 4) | (data << 3) | (valid << 2) | (dirty << 1) | exclusive
-
-
-async def settle():
-    await Timer(1, unit="ns")
-
-
-async def tick(dut):
-    dut.clk.value = 1
-    await Timer(1, unit="ns")
-    dut.clk.value = 0
-    await Timer(1, unit="ns")
 
 
 def set_local(dut, valid, addr=0, data=0, op=0):
@@ -41,6 +32,7 @@ def clear_snoop(dut):
 @cocotb.test()
 async def cache_controller_local_and_snoop_behavior(dut):
     dut = dut.cache_ctrl_tb if hasattr(dut, "cache_ctrl_tb") else dut
+    monitor = cov.unit_monitor(cov.CacheCtrlUnitMonitor, dut)
     dut.clk.value = 0
     dut.rst_n.value = 0
     dut.protocol.value = MSI
@@ -50,7 +42,7 @@ async def cache_controller_local_and_snoop_behavior(dut):
     clear_snoop(dut)
     set_local(dut, 0)
     await settle()
-    await tick(dut)
+    await tick(dut, monitor)
     dut.rst_n.value = 1
     await settle()
 
@@ -65,14 +57,14 @@ async def cache_controller_local_and_snoop_behavior(dut):
     assert int(dut.bus_req_type.value) == RD
     assert int(dut.bus_req_addr.value) == 0
     assert int(dut.inst_done.value) == 0
-    await tick(dut)
+    await tick(dut, monitor)
 
     dut.bus_done.value = 1
     dut.bus_resp_data.value = 1
     dut.bus_resp_shared.value = 0
     await settle()
     assert int(dut.inst_done.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     set_local(dut, 0)
     dut.bus_done.value = 0
     await settle()
@@ -83,12 +75,12 @@ async def cache_controller_local_and_snoop_behavior(dut):
     await settle()
     assert int(dut.bus_req.value) == 0
     assert int(dut.inst_done.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     set_local(dut, 1, addr=0, data=0, op=1)
     await settle()
     assert int(dut.bus_req.value) == 0
     assert int(dut.inst_done.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     set_local(dut, 0)
     await settle()
     assert int(dut.line0.value) == line(0, 0, 1, 1, 1)
@@ -104,7 +96,7 @@ async def cache_controller_local_and_snoop_behavior(dut):
     assert int(dut.snoop_owner.value) == 1
     assert int(dut.snoop_data.value) == 0
     assert int(dut.inst_done.value) == 0
-    await tick(dut)
+    await tick(dut, monitor)
     set_local(dut, 0)
     dut.bus_snoop_valid.value = 0
     await settle()
@@ -116,7 +108,7 @@ async def cache_controller_local_and_snoop_behavior(dut):
     dut.bus_snoop_type.value = RD
     await settle()
     assert int(dut.snoop_owner.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     clear_snoop(dut)
     await settle()
     assert int(dut.line0.value) == line(0, 0, 1, 0, 0)
@@ -127,11 +119,11 @@ async def cache_controller_local_and_snoop_behavior(dut):
     assert int(dut.bus_req.value) == 1
     assert int(dut.bus_req_type.value) == INV
     assert int(dut.inst_done.value) == 0
-    await tick(dut)
+    await tick(dut, monitor)
     dut.bus_done.value = 1
     await settle()
     assert int(dut.inst_done.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     set_local(dut, 0)
     dut.bus_done.value = 0
     await settle()
@@ -141,10 +133,10 @@ async def cache_controller_local_and_snoop_behavior(dut):
     dut.bus_snoop_valid.value = 1
     dut.bus_snoop_type.value = INV
     dut.bus_snoop_addr.value = 0
-    await tick(dut)
+    await tick(dut, monitor)
     clear_snoop(dut)
     await settle()
-    assert int(dut.line0.value) == 0
+    assert int(dut.line0.value) & 0b111 == 0  # INVALID; tag and data are unspecified
 
     set_local(dut, 1, addr=1, data=1, op=1)
     await settle()
@@ -153,7 +145,7 @@ async def cache_controller_local_and_snoop_behavior(dut):
     dut.bus_done.value = 1
     await settle()
     assert int(dut.inst_done.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     set_local(dut, 0)
     dut.bus_done.value = 0
     await settle()
@@ -167,15 +159,15 @@ async def cache_controller_local_and_snoop_behavior(dut):
     assert int(dut.bus_req_addr.value) == 1
     assert int(dut.bus_req_data.value) == 1
     assert int(dut.inst_done.value) == 0
-    await tick(dut)
+    await tick(dut, monitor)
     dut.bus_done.value = 1
     await settle()
     assert int(dut.bus_req_type.value) == WB
     assert int(dut.inst_done.value) == 0
-    await tick(dut)
+    await tick(dut, monitor)
     dut.bus_done.value = 0
     await settle()
-    assert int(dut.line1.value) == 0
+    assert int(dut.line1.value) & 0b111 == 0  # INVALID; tag and data are unspecified
     assert int(dut.bus_req.value) == 1
     assert int(dut.bus_req_type.value) == RD
     assert int(dut.bus_req_addr.value) == 3
@@ -185,7 +177,7 @@ async def cache_controller_local_and_snoop_behavior(dut):
     dut.bus_resp_shared.value = 1
     await settle()
     assert int(dut.inst_done.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     set_local(dut, 0)
     dut.bus_done.value = 0
     await settle()
@@ -197,11 +189,11 @@ async def cache_controller_local_and_snoop_behavior(dut):
     dut.bus_snoop_addr.value = 3
     await settle()
     assert int(dut.snoop_hit.value) == 1
-    await tick(dut)
+    await tick(dut, monitor)
     dut.bus_snoop_addr.value = 2
     await settle()
     assert int(dut.snoop_hit.value) == 0
-    await tick(dut)
+    await tick(dut, monitor)
     clear_snoop(dut)
     await settle()
     assert int(dut.line1.value) == line(1, 0, 1, 0, 0)

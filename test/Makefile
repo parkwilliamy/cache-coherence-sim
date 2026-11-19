@@ -86,7 +86,9 @@ VERILOG_SOURCES += $(PWD)/core_tb.sv
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
-COCOTB_TEST_MODULES = test,test_bus,test_decoder,test_main_mem,test_core
+# test_coverage_report must stay last: it reports the functional coverage of every
+# test that ran before it.
+COCOTB_TEST_MODULES = test,test_bus,test_decoder,test_main_mem,test_core,test_cache_ctrl,test_coverage_report
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim

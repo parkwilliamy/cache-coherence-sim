@@ -151,11 +151,14 @@ def test_commands_start_pulse_protocol_and_programs():
     assert after_prog == before_prog + 1
 
 
-def test_grant_samples_request_type_and_core():
+def test_core_is_sampled_at_grant_and_request_type_at_done():
     model = cov.CoverageModel()
     before = hits("core.req_type", "WB"), hits("system.cores_granted", 2)
     model.step(run_snapshot(grant=1, grant_idx=2, req=0b0100, bus_type=cov.WB,
                             snoop_valid=0b1011))
+    assert (hits("core.req_type", "WB"), hits("system.cores_granted", 2)) == (before[0], before[1] + 1)
+    model.step(run_snapshot(req=0b0100, bus_type=cov.WB))                 # memory latency
+    model.step(run_snapshot(req=0b0100, bus_type=cov.WB, done=0b0100))
     assert model.failures == []
     assert (hits("core.req_type", "WB"), hits("system.cores_granted", 2)) == (before[0] + 1, before[1] + 1)
 
@@ -213,7 +216,7 @@ def test_snoop_that_misses_the_cache_is_not_an_arc():
     model.step(run_snapshot(lines=lines_with(c1=(line(1, S), 0)), req=1, grant=1, done=1,
                             snoop_valid=0b1110, bus_type=cov.INV, bus_addr=0))
     model.step(run_snapshot(lines=lines_with(c1=(line(1, S), 0))))
-    assert model._pending_arcs == [] and model.unexpected_arcs == []
+    assert model.caches[1]._pending == [] and model.unexpected_arcs == []
 
 
 def test_arc_outside_the_table_is_reported_not_sampled():
@@ -229,9 +232,9 @@ def test_reset_forgets_an_instruction_in_flight():
     model = cov.CoverageModel()
     read0 = (inst(0, 0),) * cov.N_CORES
     model.step(run_snapshot(local_valid=1, local_inst=read0, lines=NO_LINES, req=1))
-    assert model._instr[0] is not None
+    assert model.caches[0]._instr is not None
     model.reset()
-    assert model._instr[0] is None and model._prev is None
+    assert model.caches[0]._instr is None and model._prev_state is None
 
 
 # ---- model: assertions fail ----
@@ -281,3 +284,62 @@ def test_line_invariant_violations_fail_section_5():
     model = cov.CoverageModel()
     model.step(run_snapshot(lines=lines_with(c0=(line(0, M), 0), c2=(line(0, S), 0))))
     assert failed_sections(model) == ["5.6"]
+
+
+# ---- module models on their own (as the module testbenches use them) ----
+def test_decoder_model_standalone():
+    model = cov.DecoderModel()
+    before = hits("decoder.command_type", "CMD_LOAD_WR")
+    model.step(cov.LOAD, 1 | (cov.CMD_LOAD_WR << 1), 0)
+    model.step(cov.LOAD, 1 | (cov.CMD_START << 1), cov.ALL_CORES)
+    model.step(cov.RUN, 1 | (cov.CMD_LOAD_WR << 1), 0)        # not LOAD: not a command
+    assert model.findings.failures == []
+    assert hits("decoder.command_type", "CMD_LOAD_WR") == before + 1
+    model.step(cov.RUN, 0, 0b0001)                            # start outside CMD_START
+    assert [m.split()[0] for m in model.findings.failures] == ["1.1"]
+
+
+def test_bus_model_standalone():
+    model = cov.BusModel()
+    before = hits("system.cores_granted", 3)
+    model.step(grant=1, grant_idx=3, done=0, snoop_valid=0b0111)
+    model.step(grant=0, grant_idx=0, done=0b1000, snoop_valid=0)
+    assert model.findings.failures == []
+    assert hits("system.cores_granted", 3) == before + 1
+    model.step(grant=1, grant_idx=3, done=0, snoop_valid=0b1111)
+    assert [m.split()[0] for m in model.findings.failures] == ["2.2"]
+
+
+def test_core_model_standalone():
+    model = cov.CoreModel()
+    before = hits("core.req_type", "INV")
+    model.step(req=1, done=0, req_type=cov.INV)
+    model.step(req=1, done=1, req_type=cov.INV)
+    model.step(req=0, done=0, req_type=cov.RD)
+    assert model.findings.failures == []
+    assert hits("core.req_type", "INV") == before + 1
+    model.step(req=1, done=0, req_type=cov.RD)
+    model.step(req=0, done=0, req_type=cov.RD)
+    assert [m.split()[0] for m in model.findings.failures] == ["3.1"]
+
+
+def test_cache_ctrl_model_standalone_samples_protocol_per_instruction():
+    model = cov.CacheCtrlModel()
+    before_arc = arc_hits(I, M, "write_miss")
+    before_proto = hits("cache_ctrl.protocol", "MSI")
+    args = dict(local_inst=inst(1, 1, 1), snooped=0, snoop_type=cov.RD, snoop_addr=0)
+    model.step(local_valid=1, inst_done=0, lines=(0, 0), protocol=cov.MSI, **args)
+    model.step(local_valid=1, inst_done=1, lines=(0, 0), protocol=cov.MSI, **args)
+    model.step(local_valid=0, inst_done=0, lines=(0, line(0, M, data=1)), protocol=cov.MSI, **args)
+    assert model.findings.unexpected_arcs == []
+    assert arc_hits(I, M, "write_miss") == before_arc + 1
+    assert hits("cache_ctrl.protocol", "MSI") == before_proto + 1   # one instruction
+
+
+def test_cache_ctrl_model_reports_arc_only_a_testbench_can_produce():
+    """O -> S by a snooped read needs the protocol to change mid-run."""
+    model = cov.CacheCtrlModel(core=2)
+    args = dict(local_valid=0, local_inst=0, inst_done=0)
+    model.step(snooped=1, snoop_type=cov.RD, snoop_addr=0, lines=(line(0, O), 0), **args)
+    model.step(snooped=0, snoop_type=cov.RD, snoop_addr=0, lines=(line(0, S), 0), **args)
+    assert model.findings.unexpected_arcs == [(2, O, S, "snoop_RD")]
