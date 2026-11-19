@@ -40,6 +40,17 @@ SIM_BUILD				= sim_build/rtl
 COMPILE_ARGS    += -Wno-fatal
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
 
+# Code coverage (test requirement 1.4, decoder states and transitions):
+#   make CODE_COVERAGE=1        build with Verilator coverage, write coverage.dat
+#   make code-coverage-report   annotate the sources into coverage_annotated/
+# Verilator only. It gets its own build directory because cocotb does not rebuild
+# when only the flags change.
+ifeq ($(CODE_COVERAGE),1)
+ifeq ($(SIM),verilator)
+SIM_BUILD				= sim_build/rtl_cov
+EXTRA_ARGS      += --coverage
+endif
+endif
 else
 
 # Gate level simulation:
@@ -79,3 +90,7 @@ COCOTB_TEST_MODULES = test,test_bus,test_decoder,test_main_mem,test_core
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+.PHONY: code-coverage-report
+code-coverage-report:
+	verilator_coverage --annotate coverage_annotated --annotate-min 1 coverage.dat
