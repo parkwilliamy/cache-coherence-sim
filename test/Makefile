@@ -76,19 +76,40 @@ ifeq ($(SIM),verilator)
 COMPILE_ARGS    += --timing
 endif
 
+# The module testbenches (*_tb.sv) instantiate bus, core, ... through their
+# SystemVerilog interfaces, so they and their tests exist in the default RTL build
+# only. project.v (SV2V=1) and the gate-level netlist have no such modules to
+# instantiate, and Icarus cannot compile the testbenches. tb.v instantiates them
+# under `ifdef UNIT_TESTS.
+UNIT_TESTS = yes
+ifeq ($(GATES),yes)
+UNIT_TESTS = no
+endif
+ifeq ($(SV2V),1)
+UNIT_TESTS = no
+endif
+
 # Include the testbench sources:
 VERILOG_SOURCES += $(PWD)/tb.v
+ifeq ($(UNIT_TESTS),yes)
+COMPILE_ARGS    += -DUNIT_TESTS
 VERILOG_SOURCES += $(PWD)/cache_ctrl_tb.sv
 VERILOG_SOURCES += $(PWD)/bus_tb.sv
 VERILOG_SOURCES += $(PWD)/decoder_tb.sv
 VERILOG_SOURCES += $(PWD)/main_mem_tb.sv
 VERILOG_SOURCES += $(PWD)/core_tb.sv
+endif
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
+ifeq ($(UNIT_TESTS),yes)
 # test_coverage_report must stay last: it reports the functional coverage of every
 # test that ran before it.
 COCOTB_TEST_MODULES = test,test_bus,test_decoder,test_main_mem,test_core,test_cache_ctrl,test_coverage_report
+else
+# Pin-level tests of the whole chip; these run on every build.
+COCOTB_TEST_MODULES = test
+endif
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim

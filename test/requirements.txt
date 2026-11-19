@@ -1,3 +1,5 @@
 pytest==8.4.2
 cocotb==2.1.0
-cocotb-coverage==1.2.0
+# cocotb-coverage 1.2.0 on PyPI declares cocotb~=1.8, which conflicts with cocotb 2.
+# The upstream repository supports cocotb 2 (and needs Python >= 3.11).
+cocotb-coverage @ git+https://github.com/mciepluc/cocotb-coverage@6bae4f629b0edde5169d20ca792627495ab7a38e

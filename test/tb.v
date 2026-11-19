@@ -46,10 +46,14 @@ module tb ();
       .rst_n  (rst_n)     // not reset
   );
 
+  // Module-level testbenches, driven by test_bus.py, test_core.py, ...
+  // Default RTL build only: the Makefile defines UNIT_TESTS and adds their sources.
+`ifdef UNIT_TESTS
   cache_ctrl_tb cache_ctrl_tb ();
   bus_tb bus_tb ();
   decoder_tb decoder_tb ();
   main_mem_tb main_mem_tb ();
   core_tb core_tb ();
+`endif
 
 endmodule
