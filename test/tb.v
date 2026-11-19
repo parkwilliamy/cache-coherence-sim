@@ -46,4 +46,10 @@ module tb ();
       .rst_n  (rst_n)     // not reset
   );
 
+  cache_ctrl_tb cache_ctrl_tb ();
+  bus_tb bus_tb ();
+  decoder_tb decoder_tb ();
+  main_mem_tb main_mem_tb ();
+  core_tb core_tb ();
+
 endmodule

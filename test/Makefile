@@ -37,6 +37,7 @@ ifneq ($(GATES),yes)
 
 # RTL simulation:
 SIM_BUILD				= sim_build/rtl
+COMPILE_ARGS    += -Wno-fatal
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
 
 else
@@ -66,10 +67,15 @@ endif
 
 # Include the testbench sources:
 VERILOG_SOURCES += $(PWD)/tb.v
+VERILOG_SOURCES += $(PWD)/cache_ctrl_tb.sv
+VERILOG_SOURCES += $(PWD)/bus_tb.sv
+VERILOG_SOURCES += $(PWD)/decoder_tb.sv
+VERILOG_SOURCES += $(PWD)/main_mem_tb.sv
+VERILOG_SOURCES += $(PWD)/core_tb.sv
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
-COCOTB_TEST_MODULES = test
+COCOTB_TEST_MODULES = test,test_bus,test_decoder,test_main_mem,test_core
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim

@@ -40,6 +40,7 @@ def clear_snoop(dut):
 
 @cocotb.test()
 async def cache_controller_local_and_snoop_behavior(dut):
+    dut = dut.cache_ctrl_tb if hasattr(dut, "cache_ctrl_tb") else dut
     dut.clk.value = 0
     dut.rst_n.value = 0
     dut.protocol.value = MSI
