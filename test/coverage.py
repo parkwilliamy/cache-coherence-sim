@@ -313,13 +313,46 @@ def sample_transition(prev, curr, cause):
 
 
 # System
+class _HitCounts(dict):
+    """Cross bin -> hits, which also counts the bins that have reached at_least."""
+
+    def __init__(self, hits, at_least):
+        super().__init__(hits)
+        self.at_least = at_least
+        self.covered = sum(1 for count in hits.values() if count >= at_least)
+
+    def __setitem__(self, cross_bin, count):
+        if count == self.at_least:  # a sample raises a count by one, so this is once
+            self.covered += 1
+        super().__setitem__(cross_bin, count)
+
+
+class CountedCross(CoverCross):
+    """CoverCross with a running count of its covered bins.
+
+    CoverCross recounts every bin twice per sample. system.program_cross has
+    len(INST_KINDS) ** ICACHE_SIZE bins (20,736), which made that about 10 ms per
+    sampled program and most of the runtime of system.test_all_programs.
+    """
+
+    def __init__(self, name, *args, **kwargs):
+        created = name not in coverage_db
+        super().__init__(name, *args, **kwargs)
+        if created:
+            self._hits = _HitCounts(self._hits, self._at_least)
+
+    @property
+    def coverage(self):
+        return self._weight * self._hits.covered
+
+
 SystemCoverage = coverage_section(                                              # 5.4
     # One point per instruction cache slot, crossed over the slots: a bin of the
     # cross is one whole program. Any core running a program covers it.
     *[CoverPoint(f"system.program_slot{k}",
                  xf=lambda program, k=k: inst_kind(program[k]), bins=INST_KINDS)
       for k in range(ICACHE_SIZE)],
-    CoverCross("system.program_cross",
+    CountedCross("system.program_cross",
                items=[f"system.program_slot{k}" for k in range(ICACHE_SIZE)]),
 )
 

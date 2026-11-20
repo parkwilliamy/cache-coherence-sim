@@ -102,13 +102,21 @@ endif
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
+# system runs every program on every core (20,736 runs, a few minutes) where the
+# functional coverage monitor exists, and a sample of 500 where it does not;
+# `make SYSTEM_RUNS=<n>` sets the number of runs.
 ifeq ($(UNIT_TESTS),yes)
 # test_coverage_report must stay last: it reports the functional coverage of every
-# test that ran before it.
-COCOTB_TEST_MODULES = test,test_bus,test_decoder,test_main_mem,test_core,test_cache_ctrl,test_coverage_report
-else
-# Pin-level tests of the whole chip; these run on every build.
+# test that ran before it. system must come after test, whose smoke test checks
+# how many programs have been covered so far.
+COCOTB_TEST_MODULES = test,test_bus,test_decoder,test_main_mem,test_core,test_cache_ctrl,system,test_coverage_report
+else ifeq ($(GATES),yes)
+# Pin-level test of the whole chip. system is left out: it has not been run on a
+# gate-level netlist yet.
 COCOTB_TEST_MODULES = test
+else
+# Pin-level tests of the whole chip.
+COCOTB_TEST_MODULES = test,system
 endif
 
 # include cocotb's make rules to take care of the simulator setup
