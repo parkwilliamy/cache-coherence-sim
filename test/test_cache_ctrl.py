@@ -100,6 +100,15 @@ async def cache_controller_local_and_snoop_behavior(dut):
     set_local(dut, 0)
     dut.bus_snoop_valid.value = 0
     await settle()
+    
+    # Hold the controller idle across several clock edges. This samples the
+    # no-snoop/no-local-request branch of the sequential cache update logic.
+    set_local(dut, 0)
+    clear_snoop(dut)
+    dut.bus_done.value = 0
+    dut.protocol.value = MSI
+    for _ in range(20):
+        await tick(dut, monitor)
     assert int(dut.line0.value) == line(0, 0, 1, 1, 0)
 
     # With O disabled, a read snoop downgrades the owner to clean shared.
@@ -197,3 +206,52 @@ async def cache_controller_local_and_snoop_behavior(dut):
     clear_snoop(dut)
     await settle()
     assert int(dut.line1.value) == line(1, 0, 1, 0, 0)
+
+    # Toggle the tag and data fields in each cache slot, and exercise
+    # read/write behavior while bus.done is asserted.
+    set_local(dut, 1, addr=1)
+    dut.bus_done.value = 1
+    await settle()
+    assert int(dut.inst_done.value) == 1
+    await tick(dut, monitor)
+
+    set_local(dut, 1, addr=1, data=1, op=1)
+    await settle()
+    assert int(dut.bus_req.value) == 1
+    assert int(dut.bus_req_type.value) == INV
+    await tick(dut, monitor)
+    dut.bus_done.value = 1
+    await settle()
+    assert int(dut.inst_done.value) == 1
+    await tick(dut, monitor)
+    set_local(dut, 0)
+    dut.bus_done.value = 0
+    await settle()
+    assert int(dut.line1.value) == line(0, 1, 1, 1, 1)
+
+    set_local(dut, 1, addr=2)
+    dut.protocol.value = MESI
+    dut.bus_done.value = 1
+    dut.bus_resp_data.value = 1
+    dut.bus_resp_shared.value = 1
+    await settle()
+    await tick(dut, monitor)
+    set_local(dut, 0)
+    dut.bus_done.value = 0
+    await settle()
+    assert int(dut.line0.value) == line(1, 1, 1, 0, 0)
+
+    # Exercise hit reads with done asserted and snoops of nonmatching slots.
+    set_local(dut, 1, addr=2)
+    dut.bus_done.value = 1
+    await settle()
+    assert int(dut.inst_done.value) == 1
+    await tick(dut, monitor)
+    set_local(dut, 0)
+    dut.bus_done.value = 0
+    dut.bus_snoop_valid.value = 1
+    dut.bus_snoop_type.value = INV
+    dut.bus_snoop_addr.value = 1
+    await tick(dut, monitor)
+    dut.bus_snoop_valid.value = 0
+    await settle()
