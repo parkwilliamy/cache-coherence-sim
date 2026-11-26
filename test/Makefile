@@ -42,7 +42,7 @@ VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
 
 # Code coverage (test requirement 1.4, decoder states and transitions):
 #   make CODE_COVERAGE=1        build with Verilator coverage, write coverage.dat
-#   make code-coverage-report   annotate the sources into coverage_annotated/
+#   make code-coverage-report   per-type summary, annotated sources in coverage_annotated/<type>/
 # Verilator only. It gets its own build directory because cocotb does not rebuild
 # when only the flags change.
 ifeq ($(CODE_COVERAGE),1)
@@ -122,6 +122,17 @@ endif
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
+# One summary line per coverage type, followed by the lines and points that type
+# missed. Override the list to look at fewer: make code-coverage-report CODE_COVERAGE_TYPES=line
+CODE_COVERAGE_TYPES ?= line branch expr toggle
+
 .PHONY: code-coverage-report
 code-coverage-report:
-	verilator_coverage --annotate coverage_annotated --annotate-min 1 coverage.dat
+	@rm -rf coverage_annotated && mkdir coverage_annotated
+	@for t in $(CODE_COVERAGE_TYPES); do \
+		verilator_coverage --annotate coverage_annotated/$$t --annotate-min 1 \
+			--annotate-points --filter-type $$t coverage.dat \
+			| sed -n "s/^Total coverage/$$t/p"; \
+	done; true
+	@verilator_coverage --annotate coverage_annotated/all --annotate-min 1 \
+		--annotate-points coverage.dat | sed -n 's/^Total coverage/total/p'
