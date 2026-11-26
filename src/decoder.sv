@@ -14,7 +14,10 @@ module decoder (
     input logic [7:0] uio_in,
     output logic loading,
     output logic [7:0] uo_out,
+    // verilator coverage_off
+    // uio_out[LINE_WIDTH:7] are reserved-zero pins, not reachable design state.
     output logic [7:0] uio_out,
+    // verilator coverage_on
     output logic [7:0] uio_oe
 );
 
